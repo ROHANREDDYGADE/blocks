@@ -1,0 +1,1 @@
+{"version":3,"file":"insert-images.d.ts","sourceRoot":"","sources":["../../../src/image-block/commands/insert-images.ts"],"names":[],"mappings":"AAAA,OAAO,KAAK,EAAE,OAAO,EAAE,MAAM,uBAAuB,CAAC;AAMrD,eAAO,MAAM,mBAAmB,EAAE,OAAO,CACvC,gBAAgB,EAChB,kBAAkB,EAClB;IAAE,eAAe,CAAC,EAAE,OAAO,CAAC;IAAC,KAAK,CAAC,EAAE,OAAO,GAAG,QAAQ,CAAA;CAAE,CAmC1D,CAAC"}

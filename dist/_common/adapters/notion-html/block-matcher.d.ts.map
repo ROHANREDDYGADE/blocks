@@ -1,0 +1,1 @@
+{"version":3,"file":"block-matcher.d.ts","sourceRoot":"","sources":["../../../../src/_common/adapters/notion-html/block-matcher.ts"],"names":[],"mappings":"AAAA,OAAO,KAAK,EAAE,6BAA6B,EAAE,MAAM,oCAAoC,CAAC;AACxF,OAAO,KAAK,EAAE,aAAa,EAAE,MAAM,uBAAuB,CAAC;AA4C3D,eAAO,MAAM,qCAAqC,EAAE,6BAA6B,EAY9E,CAAC;AAEJ,eAAO,MAAM,gCAAgC,EAAE,aAAa,EAW3D,CAAC"}

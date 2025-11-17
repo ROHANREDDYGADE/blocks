@@ -1,0 +1,1 @@
+{"version":3,"file":"template-tool.d.ts","sourceRoot":"","sources":["../../../../src/root-block/edgeless/gfx-tool/template-tool.ts"],"names":[],"mappings":"AAAA,OAAO,EAAE,QAAQ,EAAE,MAAM,2BAA2B,CAAC;AAErD,qBAAa,YAAa,SAAQ,QAAQ;IACxC,OAAgB,QAAQ,EAAE,MAAM,CAAc;CAC/C;AAED,OAAO,QAAQ,2BAA2B,CAAC;IACzC,UAAU,WAAW;QACnB,QAAQ,EAAE,YAAY,CAAC;KACxB;CACF"}

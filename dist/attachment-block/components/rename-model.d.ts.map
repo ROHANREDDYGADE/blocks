@@ -1,0 +1,1 @@
+{"version":3,"file":"rename-model.d.ts","sourceRoot":"","sources":["../../../src/attachment-block/components/rename-model.ts"],"names":[],"mappings":"AAAA,OAAO,KAAK,EAAE,oBAAoB,EAAE,MAAM,0BAA0B,CAAC;AACrE,OAAO,KAAK,EAAE,UAAU,EAAE,MAAM,uBAAuB,CAAC;AASxD,eAAO,MAAM,WAAW,4CAIrB;IACD,UAAU,EAAE,UAAU,CAAC;IACvB,KAAK,EAAE,oBAAoB,CAAC;IAC5B,eAAe,EAAE,eAAe,CAAC;CAClC,yCA0EA,CAAC"}

@@ -1,0 +1,2 @@
+export { GfxBlockElementModel as GfxBlockModel } from '@blocksuite/block-std/gfx';
+//# sourceMappingURL=block-model.d.ts.map

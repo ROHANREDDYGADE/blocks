@@ -1,0 +1,1 @@
+{"version":3,"file":"block-matcher.d.ts","sourceRoot":"","sources":["../../../../src/_common/adapters/plain-text/block-matcher.ts"],"names":[],"mappings":"AAAA,OAAO,KAAK,EAAE,4BAA4B,EAAE,MAAM,oCAAoC,CAAC;AACvF,OAAO,KAAK,EAAE,aAAa,EAAE,MAAM,uBAAuB,CAAC;AA0C3D,eAAO,MAAM,oCAAoC,EAAE,4BAA4B,EAc5E,CAAC;AAEJ,eAAO,MAAM,+BAA+B,EAAE,aAAa,EAa1D,CAAC"}

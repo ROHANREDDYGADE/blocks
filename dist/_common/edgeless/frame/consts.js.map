@@ -1,0 +1,1 @@
+{"version":3,"file":"consts.js","sourceRoot":"","sources":["../../../../src/_common/edgeless/frame/consts.ts"],"names":[],"mappings":"","sourcesContent":["export type NavigatorMode = 'fill' | 'fit';\n"]}

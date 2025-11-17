@@ -1,0 +1,1 @@
+{"version":3,"file":"dedent-blocks-to-root.d.ts","sourceRoot":"","sources":["../../../src/note-block/commands/dedent-blocks-to-root.ts"],"names":[],"mappings":"AAAA,OAAO,KAAK,EAAE,OAAO,EAAE,MAAM,uBAAuB,CAAC;AAIrD,eAAO,MAAM,kBAAkB,EAAE,OAAO,CACtC,KAAK,EACL,KAAK,EACL;IACE,QAAQ,CAAC,EAAE,MAAM,EAAE,CAAC;IACpB,WAAW,CAAC,EAAE,OAAO,CAAC;CACvB,CAkCF,CAAC"}

@@ -1,0 +1,1 @@
+{"version":3,"file":"const.js","sourceRoot":"","sources":["../../../../src/_common/components/ai-item/const.ts"],"names":[],"mappings":"AAAA,MAAM,CAAC,MAAM,wBAAwB,GAAG,EAAE,CAAC;AAC3C,MAAM,CAAC,MAAM,yBAAyB,GAAG,CAAC,EAAE,CAAC","sourcesContent":["export const SUBMENU_OFFSET_MAIN_AXIS = 12;\nexport const SUBMENU_OFFSET_CROSS_AXIS = -60;\n"]}

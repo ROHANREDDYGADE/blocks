@@ -1,0 +1,1 @@
+{"version":3,"file":"minmap-service.d.ts","sourceRoot":"","sources":["../../../src/surface-block/mini-mindmap/minmap-service.ts"],"names":[],"mappings":"AACA,OAAO,EAAE,YAAY,EAAE,MAAM,uBAAuB,CAAC;AACrD,OAAO,EAAE,IAAI,EAAE,MAAM,mBAAmB,CAAC;AAEzC,qBAAa,cAAe,SAAQ,YAAY;IAC9C,gBAAyB,OAAO,gBAAiC;IAEjE,aAAa,aAAc;IAE3B,MAAM;IAIG,OAAO,IAAI,IAAI;CACzB"}

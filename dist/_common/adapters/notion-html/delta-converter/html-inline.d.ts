@@ -1,0 +1,16 @@
+import { type NotionHtmlASTToDeltaMatcher } from '@blocksuite/affine-shared/adapters';
+export declare const notionHtmlTextToDeltaMatcher: NotionHtmlASTToDeltaMatcher;
+export declare const notionHtmlSpanElementToDeltaMatcher: NotionHtmlASTToDeltaMatcher;
+export declare const notionHtmlListToDeltaMatcher: NotionHtmlASTToDeltaMatcher;
+export declare const notionHtmlStrongElementToDeltaMatcher: NotionHtmlASTToDeltaMatcher;
+export declare const notionHtmlItalicElementToDeltaMatcher: NotionHtmlASTToDeltaMatcher;
+export declare const notionHtmlCodeElementToDeltaMatcher: NotionHtmlASTToDeltaMatcher;
+export declare const notionHtmlDelElementToDeltaMatcher: NotionHtmlASTToDeltaMatcher;
+export declare const notionHtmlUnderlineElementToDeltaMatcher: NotionHtmlASTToDeltaMatcher;
+export declare const notionHtmlLinkElementToDeltaMatcher: NotionHtmlASTToDeltaMatcher;
+export declare const notionHtmlMarkElementToDeltaMatcher: NotionHtmlASTToDeltaMatcher;
+export declare const notionHtmlLiElementToDeltaMatcher: NotionHtmlASTToDeltaMatcher;
+export declare const notionHtmlBrElementToDeltaMatcher: NotionHtmlASTToDeltaMatcher;
+export declare const notionHtmlStyleElementToDeltaMatcher: NotionHtmlASTToDeltaMatcher;
+export declare const notionHtmlInlineToDeltaMatchers: NotionHtmlASTToDeltaMatcher[];
+//# sourceMappingURL=html-inline.d.ts.map

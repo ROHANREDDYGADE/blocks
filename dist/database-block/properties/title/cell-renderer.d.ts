@@ -1,0 +1,2 @@
+export declare const titleColumnConfig: import("@blocksuite/data-view").PropertyMetaConfig<"title", Record<string, never>, import("@blocksuite/store").Text>;
+//# sourceMappingURL=cell-renderer.d.ts.map

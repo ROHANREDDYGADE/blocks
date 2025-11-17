@@ -1,0 +1,1 @@
+{"version":3,"file":"empty-tool.d.ts","sourceRoot":"","sources":["../../../../src/root-block/edgeless/gfx-tool/empty-tool.ts"],"names":[],"mappings":"AAAA,OAAO,EAAE,QAAQ,EAAE,MAAM,2BAA2B,CAAC;AAErD;;GAEG;AACH,qBAAa,SAAU,SAAQ,QAAQ;IACrC,OAAgB,QAAQ,EAAE,MAAM,CAAW;CAC5C;AAED,OAAO,QAAQ,2BAA2B,CAAC;IACzC,UAAU,WAAW;QACnB,KAAK,EAAE,SAAS,CAAC;KAClB;CACF"}

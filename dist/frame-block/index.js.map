@@ -1,0 +1,1 @@
+{"version":3,"file":"index.js","sourceRoot":"","sources":["../../src/frame-block/index.ts"],"names":[],"mappings":"AAAA,cAAc,kBAAkB,CAAC;AACjC,cAAc,iBAAiB,CAAC","sourcesContent":["export * from './frame-block.js';\nexport * from './frame-spec.js';\n"]}

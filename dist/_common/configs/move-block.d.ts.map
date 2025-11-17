@@ -1,0 +1,1 @@
+{"version":3,"file":"move-block.d.ts","sourceRoot":"","sources":["../../../src/_common/configs/move-block.ts"],"names":[],"mappings":"AAAA,OAAO,KAAK,EAAkB,aAAa,EAAE,MAAM,uBAAuB,CAAC;AAmB3E,UAAU,eAAe;IACvB,IAAI,EAAE,MAAM,CAAC;IACb,MAAM,EAAE,MAAM,EAAE,CAAC;IACjB,MAAM,EAAE,CAAC,GAAG,EAAE,aAAa,KAAK,IAAI,CAAC;CACtC;AAED,eAAO,MAAM,gBAAgB,EAAE,eAAe,EAmG7C,CAAC"}

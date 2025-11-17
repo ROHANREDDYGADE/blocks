@@ -1,0 +1,1 @@
+{"version":3,"file":"index.js","sourceRoot":"","sources":["../../src/latex-block/index.ts"],"names":[],"mappings":"AAAA,cAAc,qBAAqB,CAAC;AACpC,cAAc,kBAAkB,CAAC;AACjC,cAAc,iBAAiB,CAAC","sourcesContent":["export * from './adapters/index.js';\nexport * from './latex-block.js';\nexport * from './latex-spec.js';\n"]}

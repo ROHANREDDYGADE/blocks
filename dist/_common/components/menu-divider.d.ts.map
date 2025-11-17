@@ -1,0 +1,1 @@
+{"version":3,"file":"menu-divider.d.ts","sourceRoot":"","sources":["../../../src/_common/components/menu-divider.ts"],"names":[],"mappings":"AAAA,OAAO,EAAa,UAAU,EAAE,MAAM,KAAK,CAAC;AAK5C,qBAAa,WAAY,SAAQ,UAAU;IACzC,OAAgB,MAAM,0BAoBpB;IAEO,MAAM;IAWf,QAAQ,CAAC,aAAa,SAAK;IAG3B,QAAQ,CAAC,QAAQ,UAAS;CAC3B;AAED,OAAO,CAAC,MAAM,CAAC;IACb,UAAU,qBAAqB;QAC7B,cAAc,EAAE,WAAW,CAAC;KAC7B;CACF"}

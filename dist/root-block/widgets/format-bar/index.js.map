@@ -1,0 +1,1 @@
+{"version":3,"file":"index.js","sourceRoot":"","sources":["../../../../src/root-block/widgets/format-bar/index.ts"],"names":[],"mappings":"AAAA,cAAc,aAAa,CAAC;AAC5B,OAAO,EAAE,qBAAqB,EAAE,MAAM,iBAAiB,CAAC","sourcesContent":["export * from './config.js';\nexport { AffineFormatBarWidget } from './format-bar.js';\n"]}

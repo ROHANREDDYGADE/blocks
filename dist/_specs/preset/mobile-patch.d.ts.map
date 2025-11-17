@@ -1,0 +1,1 @@
+{"version":3,"file":"mobile-patch.d.ts","sourceRoot":"","sources":["../../../src/_specs/preset/mobile-patch.ts"],"names":[],"mappings":"AAAA,OAAO,KAAK,EAAE,SAAS,EAAE,MAAM,uBAAuB,CAAC;AAMvD,OAAO,EACL,KAAK,aAAa,EAElB,gBAAgB,EAGjB,MAAM,uBAAuB,CAAC;AAQ/B,qBAAa,kBAAmB,SAAQ,gBAAgB;IACtD,OAAgB,GAAG,SAAoB;gBAE3B,GAAG,EAAE,aAAa;WAOd,KAAK,CAAC,EAAE,EAAE,SAAS;IAqE1B,OAAO;CAqBjB"}

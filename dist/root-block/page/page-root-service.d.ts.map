@@ -1,0 +1,1 @@
+{"version":3,"file":"page-root-service.d.ts","sourceRoot":"","sources":["../../../src/root-block/page/page-root-service.ts"],"names":[],"mappings":"AACA,OAAO,EAAE,IAAI,EAAE,MAAM,mBAAmB,CAAC;AAEzC,OAAO,KAAK,EAAE,QAAQ,EAAE,MAAM,8BAA8B,CAAC;AAE7D,OAAO,EAAE,WAAW,EAAE,MAAM,oBAAoB,CAAC;AAEjD,qBAAa,eAAgB,SAAQ,WAAW;IAC9C,gBAAyB,OAAO,gBAAiC;IAEjE,KAAK;;MAEH;CACH"}

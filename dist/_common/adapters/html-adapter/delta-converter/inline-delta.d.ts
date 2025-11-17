@@ -1,0 +1,10 @@
+import type { InlineDeltaToHtmlAdapterMatcher } from '@blocksuite/affine-shared/adapters';
+export declare const boldDeltaToHtmlAdapterMatcher: InlineDeltaToHtmlAdapterMatcher;
+export declare const italicDeltaToHtmlAdapterMatcher: InlineDeltaToHtmlAdapterMatcher;
+export declare const strikeDeltaToHtmlAdapterMatcher: InlineDeltaToHtmlAdapterMatcher;
+export declare const inlineCodeDeltaToMarkdownAdapterMatcher: InlineDeltaToHtmlAdapterMatcher;
+export declare const underlineDeltaToHtmlAdapterMatcher: InlineDeltaToHtmlAdapterMatcher;
+export declare const referenceDeltaToHtmlAdapterMatcher: InlineDeltaToHtmlAdapterMatcher;
+export declare const linkDeltaToHtmlAdapterMatcher: InlineDeltaToHtmlAdapterMatcher;
+export declare const inlineDeltaToHtmlAdapterMatchers: InlineDeltaToHtmlAdapterMatcher[];
+//# sourceMappingURL=inline-delta.d.ts.map

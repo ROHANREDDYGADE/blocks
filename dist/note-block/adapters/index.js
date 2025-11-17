@@ -1,0 +1,14 @@
+import { DocNoteBlockHtmlAdapterExtension, EdgelessNoteBlockHtmlAdapterExtension, } from './html.js';
+import { DocNoteBlockMarkdownAdapterExtension, EdgelessNoteBlockMarkdownAdapterExtension, } from './markdown.js';
+import { DocNoteBlockPlainTextAdapterExtension, EdgelessNoteBlockPlainTextAdapterExtension, } from './plain-text.js';
+export const DocNoteBlockAdapterExtensions = [
+    DocNoteBlockMarkdownAdapterExtension,
+    DocNoteBlockHtmlAdapterExtension,
+    DocNoteBlockPlainTextAdapterExtension,
+];
+export const EdgelessNoteBlockAdapterExtensions = [
+    EdgelessNoteBlockMarkdownAdapterExtension,
+    EdgelessNoteBlockHtmlAdapterExtension,
+    EdgelessNoteBlockPlainTextAdapterExtension,
+];
+//# sourceMappingURL=index.js.map

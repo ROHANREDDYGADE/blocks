@@ -1,0 +1,1 @@
+{"version":3,"file":"consts.js","sourceRoot":"","sources":["../../src/di/consts.ts"],"names":[],"mappings":"AAEA,MAAM,CAAC,MAAM,uBAAuB,GAAmB,SAAS,CAAC;AACjE,MAAM,CAAC,MAAM,UAAU,GAAG,EAAE,CAAC","sourcesContent":["import type { ServiceVariant } from './types.js';\n\nexport const DEFAULT_SERVICE_VARIANT: ServiceVariant = 'default';\nexport const ROOT_SCOPE = [];\n"]}

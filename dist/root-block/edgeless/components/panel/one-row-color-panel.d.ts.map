@@ -1,0 +1,1 @@
+{"version":3,"file":"one-row-color-panel.d.ts","sourceRoot":"","sources":["../../../../../src/root-block/edgeless/components/panel/one-row-color-panel.ts"],"names":[],"mappings":"AAEA,OAAO,EAAwB,kBAAkB,EAAE,MAAM,kBAAkB,CAAC;AAE5E,qBAAa,wBAAyB,SAAQ,kBAAkB;IAC9D,OAAgB,MAAM,0BAyBpB;CACH;AAED,OAAO,CAAC,MAAM,CAAC;IACb,UAAU,qBAAqB;QAC7B,8BAA8B,EAAE,wBAAwB,CAAC;KAC1D;CACF"}

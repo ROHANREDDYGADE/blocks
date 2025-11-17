@@ -1,0 +1,1 @@
+{"version":3,"file":"insert-edgeless-text.d.ts","sourceRoot":"","sources":["../../../src/edgeless-text-block/commands/insert-edgeless-text.ts"],"names":[],"mappings":"AAAA,OAAO,KAAK,EAAE,OAAO,EAAE,MAAM,uBAAuB,CAAC;AAarD,eAAO,MAAM,yBAAyB,EAAE,OAAO,CAC7C,KAAK,EACL,QAAQ,EACR;IACE,CAAC,EAAE,MAAM,CAAC;IACV,CAAC,EAAE,MAAM,CAAC;CACX,CAwFF,CAAC"}

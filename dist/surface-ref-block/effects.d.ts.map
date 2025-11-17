@@ -1,0 +1,1 @@
+{"version":3,"file":"effects.d.ts","sourceRoot":"","sources":["../../src/surface-ref-block/effects.ts"],"names":[],"mappings":"AAAA,OAAO,KAAK,EAAE,4BAA4B,EAAE,MAAM,eAAe,CAAC;AAElE,wBAAgB,OAAO,SAEtB;AAED,OAAO,CAAC,MAAM,CAAC;IACb,UAAU,UAAU,CAAC;QACnB,UAAU,cAAc;YACtB,yBAAyB,CAAC,EAAE,MAAM,CAAC;SACpC;QAED,UAAU,QAAQ;YAChB;;;;;;eAMG;YACH,qBAAqB,EAAE,OAAO,4BAA4B,CAAC;SAC5D;KACF;CACF"}
