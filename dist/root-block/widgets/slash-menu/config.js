@@ -1538,6 +1538,7 @@ function createControlButton(text, onClick) {
         font-size: 12px;
         cursor: pointer;
         transition: background 0.2s;
+        color:black;
     `;
     
     btn.addEventListener('mouseenter', () => {
