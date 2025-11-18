@@ -218,6 +218,109 @@ export const defaultSlashMenuConfig = {
                     await ctx.insertedImageIds;
             },
         },
+{
+    name: 'Cover Image',
+    description: 'Add a cover image at the top of the page.',
+    icon: ImageIcon20,
+    tooltip: 'Add cover image to page',
+    alias: ['cover', 'header', 'banner'],
+    showWhen: ({ model, rootComponent }) => {
+        const doc = rootComponent.doc;
+        const parent = doc.getParent(model);
+        return parent && parent.flavour === 'affine:note';
+    },
+    action: async ({ rootComponent, model }) => {
+        try {
+            const doc = rootComponent.doc;
+            
+            // ✅ STEP 1: Find and DELETE existing cover block + its blob
+            const paragraphs = doc.getBlocksByFlavour('affine:paragraph');
+            
+            for (const blockInstance of paragraphs) {
+                const block = blockInstance.model;
+                if (block && block.type === 'cover-image' && block.coverData) {
+                    console.log("🗑️ Removing old cover block:", block.id);
+                    
+                    // Delete the old blob from storage
+                    if (block.coverData.blobId) {
+                        try {
+                            await doc.collection.blobSync.delete(block.coverData.blobId);
+                            console.log("🗑️ Deleted old blob:", block.coverData.blobId);
+                        } catch (err) {
+                            console.warn("⚠️ Could not delete old blob:", err);
+                        }
+                    }
+                    
+                    // Delete the cover block
+                    doc.deleteBlock(block);
+                    
+                    // Remove cover UI from DOM
+                    const oldCoverUI = document.querySelector('.page-cover-container');
+                    if (oldCoverUI) oldCoverUI.remove();
+                }
+            }
+            
+            // ✅ STEP 2: Add new cover image
+            const file = await openFileOrFiles({ acceptType: 'Images', multiple: false });
+            if (!file) return;
+            
+            const imageFile = Array.isArray(file) ? file[0] : file;
+            
+            if (imageFile.size > 5 * 1024 * 1024) {
+                toast(rootComponent.host, 'Image too large. Max 5MB.');
+                return;
+            }
+            
+            // Store in BlockSuite's blob storage
+            const storage = doc.collection.blobSync;
+            const blobId = await storage.set(imageFile);
+            
+            // Create new cover block at position 0 (top)
+            const pageBlock = doc.getBlockByFlavour('affine:page')[0];
+            if (!pageBlock) return;
+            
+            const noteBlock = pageBlock.children[0];
+            if (!noteBlock) return;
+            
+            const coverBlockId = doc.addBlock(
+                'affine:paragraph',
+                {
+                    type: 'cover-image',
+                    text: new doc.Text(''),
+                    coverData: {
+                        blobId: blobId,
+                        height: 200,
+                        fitMode: 'contain',
+                        timestamp: Date.now()
+                    }
+                },
+                noteBlock,
+                0
+            );
+            
+            const coverBlock = doc.getBlock(coverBlockId)?.model;
+            
+            if (coverBlock) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    renderCoverImageFromBlock(rootComponent, coverBlock);
+                    toast(rootComponent.host, 'Cover image added');
+                };
+                reader.readAsDataURL(imageFile);
+            }
+            
+            tryRemoveEmptyLine(model);
+            
+        } catch (error) {
+            console.error('Error adding cover:', error);
+            toast(rootComponent.host, 'Failed to add cover image');
+        }
+    },
+}
+
+,
+
+
         {
             name: 'Link',
             description: 'Add a bookmark for reference.',
@@ -937,3 +1040,770 @@ function selectMember(member) {
     setTimeout(() => searchInput.focus(), 100);
 }
 //# sourceMappingURL=config.js.map
+
+
+
+
+
+
+
+
+// Function to render cover from a block
+function renderCoverImageFromBlock(rootComponent, coverBlock) {
+    const doc = rootComponent.doc;
+    const coverData = coverBlock.coverData;
+    
+    if (!coverData || !coverData.blobId) return;
+    
+    // Retrieve blob from storage
+    const storage = doc.collection.blobSync;
+    storage.get(coverData.blobId).then(blob => {
+        if (!blob) return;
+        
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            createCoverUI(rootComponent, coverBlock, e.target.result, coverData);
+        };
+        reader.readAsDataURL(blob);
+    });
+}
+
+function createCoverUI(rootComponent, coverBlock, imageData, coverData) {
+    const doc = rootComponent.doc;
+    
+    // Find editor root
+    let editorRoot = rootComponent.host;
+    while (editorRoot.parentElement) {
+        if (editorRoot.classList?.contains('affine-editor-container') ||
+            editorRoot.tagName === 'AFFINE-EDITOR-CONTAINER' ||
+            editorRoot.parentElement.tagName === 'BODY') {
+            break;
+        }
+        editorRoot = editorRoot.parentElement;
+    }
+    
+    // Remove existing cover if present
+    const existingCover = document.querySelector('.page-cover-container');
+    if (existingCover) existingCover.remove();
+    
+    // Create cover container
+    const coverContainer = document.createElement('div');
+    coverContainer.className = 'page-cover-container';
+    coverContainer.dataset.blockId = coverBlock.id;
+    coverContainer.style.cssText = `
+        width: 100%;
+        height: ${coverData.height || 200}px;
+        min-height: 200px;
+        max-height: 500px;
+        position: relative;
+        margin-bottom: 24px;
+        overflow: hidden;
+        background: #f0f0f0;
+        border-radius: 0;
+    `;
+    
+    // Add image
+    const img = document.createElement('img');
+    img.src = imageData;
+    img.style.cssText = `
+        width: 100%;
+        height: 100%;
+        object-fit: ${coverData.fitMode || 'contain'};
+        object-position: center;
+        display: block;
+        background: #f5f5f5;
+    `;
+    
+    // Add controls
+    const controls = document.createElement('div');
+    controls.className = 'cover-controls';
+    controls.style.cssText = `
+        position: absolute;
+        bottom: 16px;
+        right: 16px;
+        display: flex;
+        gap: 8px;
+        opacity: 0;
+        transition: opacity 0.2s;
+        z-index: 10;
+    `;
+    
+    // Fit mode button
+    let currentFitMode = coverData.fitMode || 'contain';
+    const fitBtn = createControlButton(`Fit: ${currentFitMode}`, () => {
+        if (currentFitMode === 'contain') {
+            currentFitMode = 'cover';
+            img.style.objectFit = 'cover';
+        } else if (currentFitMode === 'cover') {
+            currentFitMode = 'fill';
+            img.style.objectFit = 'fill';
+        } else {
+            currentFitMode = 'contain';
+            img.style.objectFit = 'contain';
+        }
+        fitBtn.textContent = `Fit: ${currentFitMode}`;
+        
+        // Update block properties
+        doc.updateBlock(coverBlock, {
+            coverData: {
+                ...coverBlock.coverData,
+                fitMode: currentFitMode
+            }
+        });
+    });
+    
+    // Change button
+    const changeBtn = createControlButton('Change', async () => {
+        try {
+            const file = await openFileOrFiles({ acceptType: 'Images', multiple: false });
+            if (!file) return;
+            
+            const imageFile = Array.isArray(file) ? file[0] : file;
+            if (imageFile.size > 5 * 1024 * 1024) {
+                toast(rootComponent.host, 'Image too large. Max 5MB.');
+                return;
+            }
+            
+            const storage = doc.collection.blobSync;
+            const newBlobId = await storage.set(imageFile);
+            
+            // Update block
+            doc.updateBlock(coverBlock, {
+                coverData: {
+                    ...coverBlock.coverData,
+                    blobId: newBlobId
+                }
+            });
+            
+            // Update display
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                img.src = e.target.result;
+                toast(rootComponent.host, 'Cover updated');
+            };
+            reader.readAsDataURL(imageFile);
+        } catch (error) {
+            console.error('Error updating cover:', error);
+        }
+    });
+    
+    // Remove button
+    const removeBtn = createControlButton('Remove', () => {
+        coverContainer.remove();
+        doc.deleteBlock(coverBlock);
+        toast(rootComponent.host, 'Cover removed');
+    });
+    
+    controls.appendChild(fitBtn);
+    controls.appendChild(changeBtn);
+    controls.appendChild(removeBtn);
+    
+    // Resize handle
+    const resizeHandle = document.createElement('div');
+    resizeHandle.style.cssText = `
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        height: 8px;
+        background: rgba(0, 0, 0, 0.1);
+        cursor: ns-resize;
+        opacity: 0;
+        transition: opacity 0.2s;
+        z-index: 10;
+    `;
+    
+    let isResizing = false;
+    let startY = 0;
+    let startHeight = 0;
+    
+    resizeHandle.addEventListener('mousedown', (e) => {
+        isResizing = true;
+        startY = e.clientY;
+        startHeight = coverContainer.offsetHeight;
+        e.preventDefault();
+    });
+    
+    document.addEventListener('mousemove', (e) => {
+        if (!isResizing) return;
+        const newHeight = Math.max(200, Math.min(500, startHeight + (e.clientY - startY)));
+        coverContainer.style.height = newHeight + 'px';
+    });
+    
+    document.addEventListener('mouseup', () => {
+        if (isResizing) {
+            isResizing = false;
+            doc.updateBlock(coverBlock, {
+                coverData: {
+                    ...coverBlock.coverData,
+                    height: parseInt(coverContainer.style.height)
+                }
+            });
+        }
+    });
+    
+    // Hover effects
+    coverContainer.addEventListener('mouseenter', () => {
+        controls.style.opacity = '1';
+        resizeHandle.style.opacity = '1';
+    });
+    
+    coverContainer.addEventListener('mouseleave', () => {
+        controls.style.opacity = '0';
+        resizeHandle.style.opacity = '0';
+    });
+    
+    coverContainer.appendChild(img);
+    coverContainer.appendChild(controls);
+    coverContainer.appendChild(resizeHandle);
+    
+    const parent = editorRoot.parentElement || document.body;
+    parent.insertBefore(coverContainer, editorRoot);
+}
+
+// Initialize covers on document load
+function initializeCoverImages(rootComponent) {
+    const doc = rootComponent.doc;
+    
+    // Find all cover blocks
+    const allBlocks = doc.getBlocks();
+    allBlocks.forEach(block => {
+        if (block.model.flavour === 'affine:paragraph' && 
+            block.model.type === 'cover-image' &&
+            block.model.coverData) {
+            renderCoverImageFromBlock(rootComponent, block.model);
+        }
+    });
+}
+
+
+
+
+
+
+
+
+
+
+
+function addCoverImageToPage(rootComponent, imageData) {
+    const doc = rootComponent.doc;
+    
+    // ✅ SAVE TO DOCUMENT METADATA
+    doc.collection.meta.setDocMeta(doc.id, {
+        ...doc.collection.meta.getDocMeta(doc.id),
+        coverImage: imageData,
+        coverHeight: 200,
+        coverFitMode: 'contain'
+    });
+    
+    // Find the actual editor root container - need to go higher up in the DOM
+    let editorRoot = rootComponent.host;
+    
+    // Try to find the affine-editor-container or the outermost container
+    while (editorRoot.parentElement) {
+        if (editorRoot.classList?.contains('affine-editor-container') ||
+            editorRoot.tagName === 'AFFINE-EDITOR-CONTAINER' ||
+            editorRoot.parentElement.tagName === 'BODY') {
+            break;
+        }
+        editorRoot = editorRoot.parentElement;
+    }
+    
+    // Check if cover already exists
+    let coverContainer = document.querySelector('.page-cover-container');
+    
+    if (!coverContainer) {
+        coverContainer = document.createElement('div');
+        coverContainer.className = 'page-cover-container';
+        coverContainer.style.cssText = `
+            width: 100%;
+            height: 200px;
+            min-height: 200px;
+            max-height: 500px;
+            position: relative;
+            margin-bottom: 24px;
+            overflow: hidden;
+            background: #f0f0f0;
+            border-radius: 0;
+        `;
+        
+        // Insert at the absolute top - before everything including title
+        const parent = editorRoot.parentElement || document.body;
+        parent.insertBefore(coverContainer, editorRoot);
+    }
+    
+    // Clear existing content
+    coverContainer.innerHTML = '';
+    
+    // Add image with contain to show full image
+    const img = document.createElement('img');
+    img.src = imageData;
+    img.style.cssText = `
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+        object-position: center;
+        display: block;
+        background: #f5f5f5;
+    `;
+    
+    // Add controls overlay
+    const controls = document.createElement('div');
+    controls.className = 'cover-controls';
+    controls.style.cssText = `
+        position: absolute;
+        bottom: 16px;
+        right: 16px;
+        display: flex;
+        gap: 8px;
+        opacity: 0;
+        transition: opacity 0.2s;
+        z-index: 10;
+    `;
+    
+    // Fit mode toggle button
+    let fitMode = 'fill'; // contain, cover, fill
+    img.style.objectFit = 'fill';
+
+    const fitBtn = createControlButton('Fit: Fill', () => {
+        if (fitMode === 'fill') {
+            fitMode = 'cover';
+            fitBtn.textContent = 'Fit: Cover';
+            img.style.objectFit = 'cover';
+        } else if (fitMode === 'cover') {
+            fitMode = 'contain';
+            fitBtn.textContent = 'Fit: Contain';
+            img.style.objectFit = 'contain';
+        } else {
+            fitMode = 'fill';
+            fitBtn.textContent = 'Fit: Fill';
+            img.style.objectFit = 'fill';
+        }
+        
+        // ✅ SAVE FIT MODE TO METADATA
+        const currentMeta = doc.collection.meta.getDocMeta(doc.id) || {};
+        doc.collection.meta.setDocMeta(doc.id, {
+            ...currentMeta,
+            coverFitMode: fitMode
+        });
+    });
+    
+    // Change image button
+    const changeBtn = createControlButton('Change', () => {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = 'image/*';
+        input.onchange = (e) => {
+            const file = e.target.files?.[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    img.src = event.target.result;
+                    
+                    // ✅ SAVE NEW IMAGE TO METADATA
+                    const currentMeta = doc.collection.meta.getDocMeta(doc.id) || {};
+                    doc.collection.meta.setDocMeta(doc.id, {
+                        ...currentMeta,
+                        coverImage: event.target.result
+                    });
+                    
+                    toast(rootComponent.host, 'Cover image updated');
+                };
+                reader.readAsDataURL(file);
+            }
+        };
+        input.click();
+    });
+    
+    // Remove button
+    const removeBtn = createControlButton('Remove', () => {
+        coverContainer.remove();
+        
+        // ✅ REMOVE FROM METADATA
+        const currentMeta = doc.collection.meta.getDocMeta(doc.id) || {};
+        delete currentMeta.coverImage;
+        delete currentMeta.coverHeight;
+        delete currentMeta.coverFitMode;
+        doc.collection.meta.setDocMeta(doc.id, currentMeta);
+        
+        toast(rootComponent.host, 'Cover image removed');
+    });
+    
+    controls.appendChild(fitBtn);
+    controls.appendChild(changeBtn);
+    controls.appendChild(removeBtn);
+    
+    // Show controls on hover
+    coverContainer.addEventListener('mouseenter', () => {
+        controls.style.opacity = '1';
+        resizeHandle.style.opacity = '1';
+    });
+    
+    coverContainer.addEventListener('mouseleave', () => {
+        controls.style.opacity = '0';
+        resizeHandle.style.opacity = '0';
+    });
+    
+    // Add resize handle
+    const resizeHandle = document.createElement('div');
+    resizeHandle.style.cssText = `
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        height: 8px;
+        background: rgba(0, 0, 0, 0.1);
+        cursor: ns-resize;
+        opacity: 0;
+        transition: opacity 0.2s;
+        z-index: 10;
+    `;
+    
+    // Resize functionality
+    let isResizing = false;
+    let startY = 0;
+    let startHeight = 0;
+    
+    resizeHandle.addEventListener('mousedown', (e) => {
+        isResizing = true;
+        startY = e.clientY;
+        startHeight = coverContainer.offsetHeight;
+        e.preventDefault();
+        document.body.style.userSelect = 'none';
+    });
+    
+    document.addEventListener('mousemove', (e) => {
+        if (!isResizing) return;
+        
+        const deltaY = e.clientY - startY;
+        const newHeight = Math.max(200, Math.min(500, startHeight + deltaY));
+        coverContainer.style.height = newHeight + 'px';
+    });
+    
+    document.addEventListener('mouseup', () => {
+        if (isResizing) {
+            isResizing = false;
+            document.body.style.userSelect = '';
+            
+            // ✅ SAVE HEIGHT TO METADATA
+            const currentMeta = doc.collection.meta.getDocMeta(doc.id) || {};
+            doc.collection.meta.setDocMeta(doc.id, {
+                ...currentMeta,
+                coverHeight: parseInt(coverContainer.style.height)
+            });
+        }
+    });
+    
+    coverContainer.appendChild(img);
+    coverContainer.appendChild(controls);
+    coverContainer.appendChild(resizeHandle);
+    
+    toast(rootComponent.host, 'Cover image added');
+}
+
+// ✅ ADD THIS FUNCTION TO RESTORE COVER ON LOAD
+async function restoreCoverImageFromDoc(rootComponent) {
+    const doc = rootComponent.doc;
+    const docMeta = doc.collection.meta.getDocMeta(doc.id);
+    
+    if (docMeta && docMeta.coverImage) {
+        try {
+            // Retrieve blob from storage
+            const storage = doc.collection.blobSync;
+            const blob = await storage.get(docMeta.coverImage);
+            
+            if (blob) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    renderCoverImage(rootComponent, e.target.result, docMeta.coverImage);
+                };
+                reader.readAsDataURL(blob);
+            }
+        } catch (error) {
+            console.error('Error restoring cover image:', error);
+        }
+    }
+}
+
+// Helper to create control buttons
+function createControlButton(text, onClick) {
+    const btn = document.createElement('button');
+    btn.textContent = text;
+    btn.style.cssText = `
+        background: white;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        padding: 6px 12px;
+        font-size: 12px;
+        cursor: pointer;
+        transition: background 0.2s;
+    `;
+    
+    btn.addEventListener('mouseenter', () => {
+        btn.style.background = '#f5f5f5';
+    });
+    
+    btn.addEventListener('mouseleave', () => {
+        btn.style.background = 'white';
+    });
+    
+    btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        onClick();
+    });
+    
+    return btn;
+}
+
+
+
+function addCoverImageToPagePersistent(rootComponent, imageData) {
+    const doc = rootComponent.doc;
+    
+    // Store cover in document metadata
+    doc.meta.setMeta('coverImage', {
+        url: imageData,
+        height: 200
+    });
+    
+    // Then render it (same as above)
+    addCoverImageToPage(rootComponent, imageData);
+}
+
+// On document load, check for cover and render it
+function initializeCoverImage(rootComponent) {
+    const doc = rootComponent.doc;
+    const coverMeta = doc.meta.getMeta('coverImage');
+    
+    if (coverMeta && coverMeta.url) {
+        addCoverImageToPage(rootComponent, coverMeta.url);
+        
+        // Restore height
+        setTimeout(() => {
+            const coverContainer = document.querySelector('.page-cover-container');
+            if (coverContainer && coverMeta.height) {
+                coverContainer.style.height = coverMeta.height + 'px';
+            }
+        }, 100);
+    }
+}
+function renderCoverImage(rootComponent, imageData, blobId) {
+    const doc = rootComponent.doc;
+    const docMeta = doc.collection.meta.getDocMeta(doc.id) || {};
+    
+    // Find the editor root container
+    let editorRoot = rootComponent.host;
+    
+    while (editorRoot.parentElement) {
+        if (editorRoot.classList?.contains('affine-editor-container') ||
+            editorRoot.tagName === 'AFFINE-EDITOR-CONTAINER' ||
+            editorRoot.parentElement.tagName === 'BODY') {
+            break;
+        }
+        editorRoot = editorRoot.parentElement;
+    }
+    
+    // Check if cover already exists
+    let coverContainer = document.querySelector('.page-cover-container');
+    
+    if (!coverContainer) {
+        coverContainer = document.createElement('div');
+        coverContainer.className = 'page-cover-container';
+        coverContainer.style.cssText = `
+            width: 100%;
+            height: ${docMeta.coverHeight || 200}px;
+            min-height: 200px;
+            max-height: 500px;
+            position: relative;
+            margin-bottom: 24px;
+            overflow: hidden;
+            background: #f0f0f0;
+            border-radius: 0;
+        `;
+        
+        // Insert at the absolute top
+        const parent = editorRoot.parentElement || document.body;
+        parent.insertBefore(coverContainer, editorRoot);
+    }
+    
+    // Clear existing content
+    coverContainer.innerHTML = '';
+    
+    // Store blobId on the container
+    coverContainer.dataset.blobId = blobId;
+    
+    // Add image
+    const img = document.createElement('img');
+    img.src = imageData;
+    const fitMode = docMeta.coverFitMode || 'contain';
+    img.style.cssText = `
+        width: 100%;
+        height: 100%;
+        object-fit: ${fitMode};
+        object-position: center;
+        display: block;
+        background: #f5f5f5;
+    `;
+    
+    // Add controls overlay
+    const controls = document.createElement('div');
+    controls.className = 'cover-controls';
+    controls.style.cssText = `
+        position: absolute;
+        bottom: 16px;
+        right: 16px;
+        display: flex;
+        gap: 8px;
+        opacity: 0;
+        transition: opacity 0.2s;
+        z-index: 10;
+    `;
+    
+    // Fit mode toggle button
+    let currentFitMode = fitMode;
+    const fitModeText = currentFitMode.charAt(0).toUpperCase() + currentFitMode.slice(1);
+    const fitBtn = createControlButton(`Fit: ${fitModeText}`, () => {
+        if (currentFitMode === 'contain') {
+            currentFitMode = 'cover';
+            fitBtn.textContent = 'Fit: Cover';
+            img.style.objectFit = 'cover';
+        } else if (currentFitMode === 'cover') {
+            currentFitMode = 'fill';
+            fitBtn.textContent = 'Fit: Fill';
+            img.style.objectFit = 'fill';
+        } else {
+            currentFitMode = 'contain';
+            fitBtn.textContent = 'Fit: Contain';
+            img.style.objectFit = 'contain';
+        }
+        
+        // ✅ Save fit mode - Using correct API
+        const currentMeta = doc.collection.meta.getDocMeta(doc.id) || {};
+        doc.collection.meta.setDocMeta(doc.id, {
+            ...currentMeta,
+            coverFitMode: currentFitMode
+        });
+    });
+    
+    // Change image button
+    const changeBtn = createControlButton('Change', async () => {
+        try {
+            const file = await openFileOrFiles({ acceptType: 'Images', multiple: false });
+            if (!file) return;
+            
+            const imageFile = Array.isArray(file) ? file[0] : file;
+            
+            if (imageFile.size > 5 * 1024 * 1024) {
+                toast(rootComponent.host, 'Image too large. Max 5MB.');
+                return;
+            }
+            
+            // Store new blob
+            const storage = doc.collection.blobSync;
+            const newBlobId = await storage.set(imageFile);
+            
+            // ✅ Update metadata - Using correct API
+            const currentMeta = doc.collection.meta.getDocMeta(doc.id) || {};
+            doc.collection.meta.setDocMeta(doc.id, {
+                ...currentMeta,
+                coverImage: newBlobId
+            });
+            
+            // Update display
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                img.src = event.target.result;
+                coverContainer.dataset.blobId = newBlobId;
+                toast(rootComponent.host, 'Cover image updated');
+            };
+            reader.readAsDataURL(imageFile);
+            
+        } catch (error) {
+            console.error('Error updating cover:', error);
+            toast(rootComponent.host, 'Failed to update cover image');
+        }
+    });
+    
+    // Remove button
+    const removeBtn = createControlButton('Remove', () => {
+        coverContainer.remove();
+        
+        // ✅ Remove from metadata - Using correct API
+        const currentMeta = doc.collection.meta.getDocMeta(doc.id) || {};
+        const { coverImage, coverHeight, coverFitMode, ...rest } = currentMeta;
+        doc.collection.meta.setDocMeta(doc.id, rest);
+        
+        toast(rootComponent.host, 'Cover image removed');
+    });
+    
+    controls.appendChild(fitBtn);
+    controls.appendChild(changeBtn);
+    controls.appendChild(removeBtn);
+    
+    // Add resize handle
+    const resizeHandle = document.createElement('div');
+    resizeHandle.style.cssText = `
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        height: 8px;
+        background: rgba(0, 0, 0, 0.1);
+        cursor: ns-resize;
+        opacity: 0;
+        transition: opacity 0.2s;
+        z-index: 10;
+    `;
+    
+    // Resize functionality
+    let isResizing = false;
+    let startY = 0;
+    let startHeight = 0;
+    
+    resizeHandle.addEventListener('mousedown', (e) => {
+        isResizing = true;
+        startY = e.clientY;
+        startHeight = coverContainer.offsetHeight;
+        e.preventDefault();
+        document.body.style.userSelect = 'none';
+    });
+    
+    document.addEventListener('mousemove', (e) => {
+        if (!isResizing) return;
+        
+        const deltaY = e.clientY - startY;
+        const newHeight = Math.max(200, Math.min(500, startHeight + deltaY));
+        coverContainer.style.height = newHeight + 'px';
+    });
+    
+    document.addEventListener('mouseup', () => {
+        if (isResizing) {
+            isResizing = false;
+            document.body.style.userSelect = '';
+            
+            // ✅ Save height - Using correct API
+            const currentMeta = doc.collection.meta.getDocMeta(doc.id) || {};
+            doc.collection.meta.setDocMeta(doc.id, {
+                ...currentMeta,
+                coverHeight: parseInt(coverContainer.style.height)
+            });
+        }
+    });
+    
+    // Show/hide controls on hover
+    coverContainer.addEventListener('mouseenter', () => {
+        controls.style.opacity = '1';
+        resizeHandle.style.opacity = '1';
+    });
+    
+    coverContainer.addEventListener('mouseleave', () => {
+        controls.style.opacity = '0';
+        resizeHandle.style.opacity = '0';
+    });
+    
+    // Append all elements
+    coverContainer.appendChild(img);
+    coverContainer.appendChild(controls);
+    coverContainer.appendChild(resizeHandle);
+}
