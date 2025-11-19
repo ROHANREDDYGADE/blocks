@@ -51,8 +51,24 @@ const getJwtToken = () => {
   }
   return "";
 };
+const getUserInfo = () => {
+	try {
+		const qwise_access_token = Cookies.get("qwise_access_token");
+		if (qwise_access_token) {
+			const decrypted_data = decryptDataWithIv(qwise_access_token);
+			const authenticated = JSON.parse(decrypted_data);
+			const user_info = authenticated["user_info"]
+			return user_info
+		} 		
+	} catch (error) {
+		console.log("is auth empty error",error)
+	}
+	return ""
+}
+
 
 const jwtToken = getJwtToken();
+const userInfo = getUserInfo();
 export const defaultSlashMenuConfig = {
     triggerKeys: ['/'],
     ignoreBlockTypes: ['affine:code'],
@@ -131,34 +147,80 @@ export const defaultSlashMenuConfig = {
                 });
             },
         },
-        {
-            name: 'Linked Doc',
-            description: 'Link to another document.',
-            icon: LinkedDocIcon,
-            tooltip: slashMenuToolTips['Linked Doc'],
-            alias: ['dual link'],
-            showWhen: ({ rootComponent, model }) => {
-                const { std } = rootComponent;
-                const linkedDocWidget = std.view.getWidget('affine-linked-doc-widget', rootComponent.model.id);
-                if (!linkedDocWidget)
-                    return false;
-                return model.doc.schema.flavourSchemaMap.has('affine:embed-linked-doc');
+{
+    name: 'Link Document',
+    description: 'Link to a document as a bookmark card.',
+    icon: LinkIcon,
+    tooltip: 'Insert a linked document as a card',
+    alias: ['doc link', 'document'],
+    showWhen: ({ model }) => model.doc.schema.flavourSchemaMap.has('affine:bookmark'),
+    
+    action: async ({ rootComponent, model }) => {
+        const parentModel = rootComponent.doc.getParent(model);
+        if (!parentModel) return;
+
+        // 1️⃣ Fetch documents from API
+        let docs = [];
+        try {
+            const response = await fetch(
+                'http://127.0.0.1:8002/api/v1/notes/list_vector_files',
+                {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        Authorization: `Token ${jwtToken}`
+                    },
+                    body: JSON.stringify({ data: {} })
+                }
+            );
+
+            const result = await response.json();
+            docs = result?.data?.completed?.documents ?? [];
+        } catch (error) {
+            console.error("Error fetching documents:", error);
+            return;
+        }
+
+        if (docs.length === 0) {
+            console.warn("No documents found");
+            return;
+        }
+
+        // 2️⃣ Show custom modal to select document
+        const selectedDoc = await showDocumentSelectorModal(rootComponent.host, docs);
+        
+        if (!selectedDoc) return; // User cancelled
+
+        // 3️⃣ Build the editor URL
+        const editorUrl = buildEditorUrl(selectedDoc);
+
+        // 4️⃣ Insert bookmark card with the document link
+        const index = parentModel.children.indexOf(model) + 1;
+        
+        const bookmarkId = rootComponent.doc.addBlock(
+            'affine:bookmark',
+            {
+                url: editorUrl,
+                title: `${selectedDoc.filename}.${selectedDoc.file_type}`,
+                description: `Created: ${selectedDoc.created}`,
             },
-            action: ({ model, rootComponent }) => {
-                const { std } = rootComponent;
-                const linkedDocWidget = std.view.getWidget('affine-linked-doc-widget', rootComponent.model.id);
-                if (!linkedDocWidget)
-                    return;
-                assertType(linkedDocWidget);
-                const triggerKey = linkedDocWidget.config.triggerKeys[0];
-                insertContent(rootComponent.host, model, triggerKey);
-                const inlineEditor = getInlineEditorByModel(rootComponent.host, model);
-                // Wait for range to be updated
-                inlineEditor?.slots.inlineRangeSync.once(() => {
-                    linkedDocWidget.show();
-                });
-            },
-        },
+            parentModel,
+            index
+        );
+
+        // 5️⃣ Remove empty line if present
+        tryRemoveEmptyLine(model);
+
+        // 6️⃣ Select the newly created bookmark
+        rootComponent.host.selection.setGroup('note', [
+            rootComponent.host.selection.create('block', {
+                blockId: bookmarkId,
+            }),
+        ]);
+    },
+}
+
+,
         // ---------------------------------------------------------
         // { groupName: 'Mentions' },
 { groupName: 'Mentions' },
@@ -1807,4 +1869,135 @@ function renderCoverImage(rootComponent, imageData, blobId) {
     coverContainer.appendChild(img);
     coverContainer.appendChild(controls);
     coverContainer.appendChild(resizeHandle);
+}
+
+
+
+
+
+
+
+
+
+function buildEditorUrl(doc) {
+    const fileType = doc.file_type.toLowerCase();
+    
+    // For HTML files - use editorjs
+    if (fileType === 'html') {
+        const params = new URLSearchParams({
+            mode: 'update',
+            fileId: doc.vector_document_id,
+            fileName: doc.filename,
+            fileUrl: doc.file_url,
+            fileType: doc.file_type
+        });
+        return `${process.env.NEXT_PUBLIC_APP_BASE_URL}/editorjs?${params.toString()}`;
+    }
+    
+    // For Office files (xlsx, pptx, docx) - use alleditor
+    if (['xlsx', 'pptx', 'docx','.pptx','.xslx','.docx'].includes(fileType)) {
+        const params = new URLSearchParams({
+            fileUrl: doc.file_url,
+            fileName: `${doc.filename}.${doc.file_type}`,
+            viewOnly: 'false',
+            token: jwtToken, // Use the JWT token from your auth
+            userId: userInfo.userid,
+            userName:userInfo.name
+        });
+        return `${process.env.NEXT_PUBLIC_APP_BASE_URL}/alleditor?${params.toString()}`;
+    }
+    
+    // For all other file types - open the file URL directly
+    return doc.file_url;
+}
+
+// Helper function to show document selector modal
+async function showDocumentSelectorModal(host, docs) {
+    return new Promise((resolve) => {
+        // Create a simple modal overlay
+        const overlay = document.createElement('div');
+        overlay.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+        `;
+
+        const modal = document.createElement('div');
+        modal.style.cssText = `
+            background: white;
+            border-radius: 8px;
+            padding: 24px;
+            max-width: 500px;
+            max-height: 600px;
+            overflow-y: auto;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        `;
+
+        const title = document.createElement('h3');
+        title.textContent = 'Select a Document';
+        title.style.cssText = 'margin: 0 0 16px 0; font-size: 18px;';
+
+        const list = document.createElement('div');
+        list.style.cssText = 'display: flex; flex-direction: column; gap: 8px;';
+
+        docs.forEach(doc => {
+            const item = document.createElement('button');
+            item.textContent = `${doc.filename}.${doc.file_type}`;
+            item.style.cssText = `
+                padding: 12px;
+                border: 1px solid #e0e0e0;
+                border-radius: 4px;
+                background: white;
+                cursor: pointer;
+                text-align: left;
+                transition: background 0.2s;
+            `;
+            
+            item.onmouseover = () => item.style.background = '#f5f5f5';
+            item.onmouseout = () => item.style.background = 'white';
+            
+            item.onclick = () => {
+                document.body.removeChild(overlay);
+                resolve(doc);
+            };
+
+            list.appendChild(item);
+        });
+
+        const cancelBtn = document.createElement('button');
+        cancelBtn.textContent = 'Cancel';
+        cancelBtn.style.cssText = `
+            margin-top: 16px;
+            padding: 8px 16px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            background: white;
+            cursor: pointer;
+        `;
+        cancelBtn.onclick = () => {
+            document.body.removeChild(overlay);
+            resolve(null);
+        };
+
+        modal.appendChild(title);
+        modal.appendChild(list);
+        modal.appendChild(cancelBtn);
+        overlay.appendChild(modal);
+        document.body.appendChild(overlay);
+
+        // Close on overlay click
+        overlay.onclick = (e) => {
+            if (e.target === overlay) {
+                document.body.removeChild(overlay);
+                resolve(null);
+            }
+        };
+    });
 }
