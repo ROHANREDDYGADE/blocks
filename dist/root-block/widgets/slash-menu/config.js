@@ -163,7 +163,7 @@ export const defaultSlashMenuConfig = {
         let docs = [];
         try {
             const response = await fetch(
-                'http://127.0.0.1:8002/api/v1/notes/list_vector_files',
+                `${process.env.NEXT_PUBLIC_NFAPI_BASE_URL}api/v1/notes/list_vector_files`,
                 {
                     method: 'POST',
                     headers: {
