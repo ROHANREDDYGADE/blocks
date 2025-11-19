@@ -149,7 +149,7 @@ export const defaultSlashMenuConfig = {
         },
 {
     name: 'Link Document',
-    description: 'Link to a document as a bookmark card.',
+    description: 'Link to a document as a bookmark card',
     icon: LinkIcon,
     tooltip: 'Insert a linked document as a card',
     alias: ['doc link', 'document'],
