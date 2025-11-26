@@ -15,8 +15,11 @@ import { getSurfaceBlock } from '../../../surface-ref-block/utils.js';
 import { formatDate, formatTime } from '../../utils/misc.js';
 import { slashMenuToolTips } from './tooltips/index.js';
 import { createConversionItem, createTextFormatItem, insideEdgelessText, tryRemoveEmptyLine, } from './utils.js';
+import {showMentionPopup,renderCoverImageFromBlock,createCoverUI,initializeCoverImages,addCoverImageToPage,restoreCoverImageFromDoc,createControlButton,addCoverImageToPagePersistent,initializeCoverImage,renderCoverImage,buildEditorUrl,showDocumentSelectorModal,showAppSelectorModal,showTableSelectorModal,showChartCreator,createChartPreview,insertChartAsImage} from './helper-methods.js'
 import Cookies from "js-cookie";
 import CryptoJS from "crypto-js";
+import Chart from "chart.js/auto";
+
 
 // AES settings (copy yours here)
 const AesConfig = {
@@ -37,6 +40,19 @@ const decryptDataWithIv = (encryptedData) => {
     console.error(err);
   }
 };
+async function waitForDbReady(dbModel, dbService) {
+    return new Promise((resolve) => {
+        const check = () => {
+            const views = dbService.getViews(dbModel);
+            if (views && views.length > 0) {
+                resolve();
+                return;
+            }
+            requestAnimationFrame(check);
+        };
+        check();
+    });
+}
 
 const getJwtToken = () => {
   try {
@@ -69,6 +85,82 @@ const getUserInfo = () => {
 
 const jwtToken = getJwtToken();
 const userInfo = getUserInfo();
+
+const API_BASE_URL = process.env.NEXT_PUBLIC_NFAPI_BASE_URL || 'http://127.0.0.1:8002';
+
+async function fetchSuperApps(userId, jwtToken) {
+    try {
+        const response = await fetch(`${API_BASE_URL}api/v1/wise/nf_superapp_app_list`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Token ${jwtToken}`
+            },
+            body: JSON.stringify({
+                data: {
+                    user_id: userId,
+                    command: "list_apps"
+                }
+            })
+        });
+        
+        const result = await response.json();
+        return result.status ? result.data.data : [];
+    } catch (error) {
+        console.error('Error fetching apps:', error);
+        return [];
+    }
+}
+
+async function fetchAppTables(userId, appName, jwtToken) {
+    try {
+        const response = await fetch(`${API_BASE_URL}api/v1/wise/nf_superapp_table_list`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Token ${jwtToken}`
+            },
+            body: JSON.stringify({
+                data: {
+                    user_id: userId.toString(),
+                    app_name: appName
+                }
+            })
+        });
+        
+        const result = await response.json();
+        return result.status ? result.data.data : [];
+    } catch (error) {
+        console.error('Error fetching tables:', error);
+        return [];
+    }
+}
+
+async function fetchTableData(userId, appName, tableName, jwtToken) {
+    try {
+        const response = await fetch(`${API_BASE_URL}api/v1/wise/nf_superapp_table_details`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Token ${jwtToken}`
+            },
+            body: JSON.stringify({
+                data: {
+                    user_id: userId.toString(),
+                    app_name: appName,
+                    table_name: tableName,
+                    foreign_key: {}
+                }
+            })
+        });
+        
+        const result = await response.json();
+        return result
+    } catch (error) {
+        console.error('Error fetching table data:', error);
+        return [];
+    }
+}
 export const defaultSlashMenuConfig = {
     triggerKeys: ['/'],
     ignoreBlockTypes: ['affine:code'],
@@ -611,6 +703,290 @@ export const defaultSlashMenuConfig = {
         // ---------------------------------------------------------
         { groupName: 'Database' },
         {
+            name: 'SuperApp Table',
+            description: 'Insert data from your SuperApp tables.',
+            alias: ['database', 'superapp', 'table data'],
+            icon: DatabaseTableViewIcon20,
+            tooltip: 'Insert SuperApp table data',
+
+            showWhen: ({ model }) =>
+                model.doc.schema.flavourSchemaMap.has('affine:database') &&
+                !insideEdgelessText(model),
+        action: async ({ rootComponent }) => {
+            try {
+                const userId = userInfo?.userid || userInfo?.id || 1;
+
+                toast(rootComponent.host, 'Loading apps...');
+
+                const apps = await fetchSuperApps(userId, jwtToken);
+                if (apps.length === 0) {
+                    toast(rootComponent.host, 'No apps found');
+                    return;
+                }
+
+                showAppSelectorModal(rootComponent.host, apps, async (selectedApp) => {
+                    toast(rootComponent.host, `Loading tables for ${selectedApp.app_name}...`);
+
+                    const tables = await fetchAppTables(userId, selectedApp.app_name, jwtToken);
+                    if (tables.length === 0) {
+                        toast(rootComponent.host, 'No tables found in this app');
+                        return;
+                    }
+
+                    showTableSelectorModal(rootComponent.host, tables, async (selectedTable) => {
+                        toast(rootComponent.host, `Loading data from ${selectedTable.name}...`);
+
+                        const response = await fetchTableData(
+                            userId,
+                            selectedApp.app_name,
+                            selectedTable.name,
+                            jwtToken
+                        );
+
+                        const tableData = response?.data?.data?.data || response?.data?.data || [];
+
+                        if (!tableData || tableData.length === 0) {
+                            toast(rootComponent.host, 'No data found in this table');
+                            return;
+                        }
+
+                        rootComponent.std.command
+                            .chain()
+                            .getSelectedModels()
+                            .insertDatabaseBlock({
+                                viewType: viewPresets.tableViewMeta.type,
+                                place: "after",
+                                removeEmptyLine: true
+                            })
+                            .inline(async ({ insertedDatabaseBlockId }) => {
+
+                                if (!insertedDatabaseBlockId) {
+                                    console.error("Failed to create database block");
+                                    return;
+                                }
+
+                                const doc = rootComponent.doc;
+                                const dbBlock = doc.getBlock(insertedDatabaseBlockId);
+                                if (!dbBlock) return;
+
+                                const dbModel = dbBlock.model;
+                                const dbService = rootComponent.std.getService("affine:database");
+
+                                if (!dbService) {
+                                    console.error("Missing service affine:database");
+                                    return;
+                                }
+
+                                // Wait for database block to be fully initialized
+                                await new Promise((resolve) => setTimeout(resolve, 500));
+
+                                const columnKeys = Object.keys(tableData[0]).filter(key => !key.startsWith('_'));
+                                const columnIdMap = {};
+
+                                // Delete all default rows
+                                const defaultChildren = dbModel.children ? [...dbModel.children] : [];
+                                for (const childId of defaultChildren) {
+                                    doc.deleteBlock(childId);
+                                }
+                                
+                                await new Promise((resolve) => setTimeout(resolve, 200));
+
+                                // Find title column
+                                let titleColumnId = null;
+                                for (const col of dbModel.columns || []) {
+                                    if (col.type === 'title') {
+                                        titleColumnId = col.id;
+                                        break;
+                                    }
+                                }
+
+                                if (!titleColumnId) {
+                                    console.error("No title column found!");
+                                    return;
+                                }
+
+                                const firstKey = columnKeys[0];
+                                columnIdMap[firstKey] = titleColumnId;
+
+                                // ===================================================
+                                // CREATE ALL COLUMNS AND VIEW IN ONE TRANSACTION
+                                // ===================================================
+                                console.log("Creating all columns in single transaction...");
+                                
+                                doc.transact(() => {
+                                    // Clear everything first
+                                    dbModel.columns = dbModel.columns.filter(col => col.type === 'title');
+                                    dbModel.cells = {};
+                                    
+                                    if (dbModel.views && dbModel.views.length > 0) {
+                                        dbModel.views[0].columns = [];
+                                    }
+                                    
+                                    // Update title column name
+                                    const titleCol = dbModel.columns.find(c => c.id === titleColumnId);
+                                    if (titleCol) {
+                                        titleCol.name = firstKey.charAt(0).toUpperCase() + firstKey.slice(1).replace(/_/g, ' ');
+                                    }
+                                    
+                                    // Create all new columns at once
+                                    const viewColumns = [];
+                                    
+                                    for (let i = 1; i < columnKeys.length; i++) {
+                                        const key = columnKeys[i];
+                                        const columnName = key.charAt(0).toUpperCase() + key.slice(1).replace(/_/g, ' ');
+                                        
+                                        // Generate unique ID
+                                        const colId = doc.generateBlockId();
+                                        
+                                        // Add column to model
+                                        dbModel.columns.push({
+                                            type: 'rich-text',
+                                            name: columnName,
+                                            data: {},
+                                            id: colId
+                                            // width: 180
+                                        });
+                                        
+                                        // Add to view columns
+                                        viewColumns.push({
+                                            id: colId,
+                                            hide: false
+                                            // width: 180
+                                        });
+                                        
+                                        columnIdMap[key] = colId;
+                                        console.log(`Created column: ${columnName} (${colId})`);
+                                    }
+                                    
+                                    // Update view
+                                    if (dbModel.views && dbModel.views.length > 0) {
+                                        const tableView = dbModel.views[0];
+                                        
+                                        if (!tableView.header) {
+                                            tableView.header = {};
+                                        }
+                                        tableView.header.titleColumn = titleColumnId;
+                                        tableView.header.iconColumn = "type";
+                                        
+                                        tableView.columns = viewColumns;
+                                    }
+                                    
+                                    console.log("Created", viewColumns.length, "columns in view");
+                                });
+
+                                await new Promise((resolve) => setTimeout(resolve, 500));
+
+                                console.log("Total columns:", dbModel.columns.length);
+                                console.log("View columns:", dbModel.views[0].columns.length);
+
+                                // ===================================================
+                                // INSERT DATA ROWS WITH PROPER TRANSACTION MANAGEMENT
+                                // ===================================================
+                                console.log("Inserting", tableData.length, "rows...");
+                                
+                                // First, create all rows
+                                const rowIds = [];
+                                for (let rowIndex = 0; rowIndex < tableData.length; rowIndex++) {
+                                    const row = tableData[rowIndex];
+                                    const titleValue = row[firstKey] || '';
+
+                                    const rowId = doc.addBlock(
+                                        'affine:paragraph',
+                                        { 
+                                            type: 'text',
+                                            text: new doc.Text(String(titleValue))
+                                        },
+                                        insertedDatabaseBlockId
+                                    );
+                                    
+                                    rowIds.push(rowId);
+                                    
+                                    // Small delay to ensure block is created
+                                    await new Promise((resolve) => setTimeout(resolve, 50));
+                                }
+
+                                // Wait a bit more to ensure all rows are properly created
+                                await new Promise((resolve) => setTimeout(resolve, 300));
+
+                                // Now, populate all cells in a single transaction
+                                doc.transact(() => {
+                                    // Ensure cells object exists
+                                    if (!dbModel.cells) {
+                                        dbModel.cells = {};
+                                    }
+
+                                    for (let rowIndex = 0; rowIndex < tableData.length; rowIndex++) {
+                                        const rowId = rowIds[rowIndex];
+                                        const row = tableData[rowIndex];
+                                        
+                                        // Ensure row entry exists in cells
+                                        if (!dbModel.cells[rowId]) {
+                                            dbModel.cells[rowId] = {};
+                                        }
+
+                                        // Populate all columns for this row
+                                        for (let i = 1; i < columnKeys.length; i++) {
+                                            const key = columnKeys[i];
+                                            const value = row[key];
+                                            const columnId = columnIdMap[key];
+
+                                            if (columnId && value !== null && value !== undefined && value !== '') {
+                                                dbModel.cells[rowId][columnId] = {
+                                                    columnId: columnId,
+                                                    value: new doc.Text(String(value))
+                                                };
+                                            }
+                                        }
+                                        
+                                        console.log(`Row ${rowIndex + 1}: Populated ${Object.keys(dbModel.cells[rowId]).length} cells`);
+                                    }
+                                });
+
+                                // Update DB title
+                                doc.transact(() => {
+                                    if (dbModel.title) {
+                                        dbModel.title.clear();
+                                        dbModel.title.insert(
+                                            `${selectedApp.app_name} - ${selectedTable.name}`,
+                                            0
+                                        );
+                                    }
+                                });
+
+                                // Final wait to ensure everything is rendered
+                                await new Promise((resolve) => setTimeout(resolve, 500));
+
+                                console.log("=== COMPLETE ===");
+                                console.log("Final columns:", dbModel.columns.length);
+                                console.log("Final view columns:", dbModel.views[0].columns.length);
+                                console.log("Total rows created:", rowIds.length);
+                                
+                                // Verify data was inserted correctly
+                                let totalCells = 0;
+                                if (dbModel.cells) {
+                                    Object.keys(dbModel.cells).forEach(rowId => {
+                                        totalCells += Object.keys(dbModel.cells[rowId]).length;
+                                    });
+                                }
+                                console.log("Total cells populated:", totalCells);
+                                
+                                toast(rootComponent.host, `Loaded ${tableData.length} rows with ${dbModel.columns.length} columns!`);
+                            })
+                            .run();
+
+                    });
+                });
+
+            } catch (err) {
+                console.error("Error loading SuperApp table:", err);
+                toast(rootComponent.host, "Failed to load table data");
+            }
+        }
+     
+
+        },
+
+        {
             name: 'Table View',
             description: 'Display items in a table format.',
             alias: ['database'],
@@ -778,1226 +1154,48 @@ export const defaultSlashMenuConfig = {
                 rootComponent.doc.deleteBlock(model);
             },
         },
+                
+        { groupName: 'Charts' },
+        {
+            name: 'Line Chart',
+            description: 'Create a line chart visualization.',
+            icon: ImageIcon20, // or create a custom chart icon
+            tooltip: 'Insert line chart',
+            alias: ['graph', 'plot', 'line graph'],
+            showWhen: ({ model }) => model.doc.schema.flavourSchemaMap.has('affine:image'),
+            action: async ({ rootComponent, model }) => {
+                await showChartCreator(rootComponent, model, 'line');
+            }
+        },
+        {
+            name: 'Bar Chart',
+            description: 'Create a bar chart visualization.',
+            icon: ImageIcon20,
+            tooltip: 'Insert bar chart',
+            alias: ['bar graph', 'column chart'],
+            showWhen: ({ model }) => model.doc.schema.flavourSchemaMap.has('affine:image'),
+            action: async ({ rootComponent, model }) => {
+                await showChartCreator(rootComponent, model, 'bar');
+            }
+        },
+        {
+            name: 'Pie Chart',
+            description: 'Create a pie chart visualization.',
+            icon: ImageIcon20,
+            tooltip: 'Insert pie chart',
+            alias: ['donut chart', 'circle graph'],
+            showWhen: ({ model }) => model.doc.schema.flavourSchemaMap.has('affine:image'),
+            action: async ({ rootComponent, model }) => {
+                await showChartCreator(rootComponent, model, 'pie');
+            }
+        }
+
     ],
 };
-function showMentionPopup(rootComponent, model, members) {
-    const overlay = document.createElement('div');
-    overlay.style.cssText = `
-        position: fixed;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background: rgba(0, 0, 0, 0.5);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        z-index: 10000;
-    `;
-    
-    const popup = document.createElement('div');
-    popup.style.cssText = `
-        background: white;
-        border-radius: 8px;
-        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
-        width: 400px;
-        max-height: 500px;
-        display: flex;
-        flex-direction: column;
-        overflow: hidden;
-    `;
-    
-    const searchContainer = document.createElement('div');
-    searchContainer.style.cssText = `
-        padding: 16px;
-        border-bottom: 1px solid #e0e0e0;
-    `;
-    
-    const searchInput = document.createElement('input');
-    searchInput.type = 'text';
-    searchInput.placeholder = 'Search members...';
-    searchInput.style.cssText = `
-        width: 100%;
-        padding: 8px 12px;
-        border: 1px solid #ddd;
-        border-radius: 4px;
-        font-size: 14px;
-        outline: none;
-    `;
-    searchInput.addEventListener('focus', () => {
-        searchInput.style.borderColor = '#4CAF50';
-    });
-    searchInput.addEventListener('blur', () => {
-        searchInput.style.borderColor = '#ddd';
-    });
-    
-    searchContainer.appendChild(searchInput);
-    
-    const membersList = document.createElement('div');
-    membersList.style.cssText = `
-        overflow-y: auto;
-        max-height: 350px;
-        padding: 8px 0;
-    `;
-    
-    let filteredMembers = [...members];
-    let selectedIndex = 0;
-    
-    function renderMembers(searchTerm = '') {
-        filteredMembers = members.filter(member => 
-            member.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            member.email.toLowerCase().includes(searchTerm.toLowerCase())
-        );
-        
-        membersList.innerHTML = '';
-        
-        if (filteredMembers.length === 0) {
-            const noResults = document.createElement('div');
-            noResults.textContent = 'No members found';
-            noResults.style.cssText = `
-                padding: 16px;
-                text-align: center;
-                color: #999;
-            `;
-            membersList.appendChild(noResults);
-            return;
-        }
-        
-        filteredMembers.forEach((member, index) => {
-            const memberItem = document.createElement('div');
-            memberItem.className = 'mention-member-item';
-            memberItem.dataset.index = index;
-            memberItem.style.cssText = `
-                padding: 12px 16px;
-                cursor: pointer;
-                display: flex;
-                align-items: center;
-                gap: 12px;
-                transition: background 0.2s;
-                position: relative;
-                ${index === selectedIndex ? 'background: #f0f0f0;' : ''}
-            `;
-            
-            memberItem.addEventListener('mouseenter', (e) => {
-                selectedIndex = index;
-                // Update all items' background
-                document.querySelectorAll('.mention-member-item').forEach((item, idx) => {
-                    item.style.background = idx === index ? '#f0f0f0' : 'transparent';
-                });
-                
-                // Show hover card
-                showHoverCard(member, e.currentTarget);
-            });
-            
-            memberItem.addEventListener('mouseleave', () => {
-                hideHoverCard();
-            });
-            
-            memberItem.addEventListener('click', (e) => {
-                e.stopPropagation();
-                selectMember(member);
-            });
-            
-            const avatar = document.createElement('img');
-            avatar.src = member.image ;
-            avatar.style.cssText = `
-                width: 32px;
-                height: 32px;
-                border-radius: 50%;
-                object-fit: cover;
-            `;
-     
-            
-            const info = document.createElement('div');
-            info.style.cssText = `
-                flex: 1;
-                overflow: hidden;
-            `;
-            
-            const name = document.createElement('div');
-            name.textContent = `${member.name}${member.is_you ? ' (You)' : ''}`;
-            name.style.cssText = `
-                font-weight: 500;
-                font-size: 14px;
-                color: #333;
-                white-space: nowrap;
-                overflow: hidden;
-                text-overflow: ellipsis;
-            `;
-            
-            const email = document.createElement('div');
-            email.textContent = member.email;
-            email.style.cssText = `
-                font-size: 12px;
-                color: #666;
-                white-space: nowrap;
-                overflow: hidden;
-                text-overflow: ellipsis;
-            `;
-            
-            info.appendChild(name);
-            info.appendChild(email);
-            
-            memberItem.appendChild(avatar);
-            memberItem.appendChild(info);
-            membersList.appendChild(memberItem);
-        });
-    }
-    
-    let hoverCard = null;
-    let hoverTimeout = null;
-    
 
-function showHoverCard(member, rect) {
-    hideHoverCard();
 
-    hoverCard = document.createElement("div");
-    hoverCard.className = "mention-hover-card";
-    hoverCard.style.cssText = `
-        position: fixed;
-        background: white;
-        border: 1px solid #e0e0e0;
-        border-radius: 8px;
-        box-shadow: 0 4px 12px rgba(0,0,0,.15);
-        padding: 16px;
-        width: 260px;
-        z-index: 99999;
-    `;
 
-    hoverCard.innerHTML = `
-        <img src="${member.image}" style="width:48px;height:48px;border-radius:50%;display:block;margin:0 auto 10px"/>
-        <div style="text-align:center;font-weight:600">${member.name}</div>
-        <div style="text-align:center;font-size:12px;color:#666">${member.email}</div>
-    `;
 
-    document.body.appendChild(hoverCard);
 
-    hoverCard.style.left = rect.left + "px";
-    hoverCard.style.top = rect.bottom + 5 + "px";
-}
 
-function hideHoverCard() {
-    if (hoverCard) {
-        hoverCard.remove();
-        hoverCard = null;
-    }
-}
 
- document.addEventListener("mouseover", (e) => {
-    const el = e.target.closest("[data-mention-id]");
-    if (!el) return;
-
-    const rect = el.getBoundingClientRect();
-
-    showHoverCard({
-        name: el.dataset.mentionName,
-        email: el.dataset.mentionEmail,
-        image: el.dataset.mentionImage
-    }, rect);
-});
-
-document.addEventListener("mouseout", (e) => {
-    if (e.relatedTarget && e.relatedTarget.closest(".mention-hover-card")) return;
-    hideHoverCard();
-});
-   
-function selectMember(member) {
-    hideHoverCard();
-
-    try {
-        const inlineEditor = getInlineEditorByModel(rootComponent.host, model);
-        const mentionText = `@${member.name}`;
-        const profileUrl = `${process.env.NEXT_PUBLIC_APP_BASE_URL}/people?user=${member.id}&reg=${member.is_registered ? 1 : 0}`;
-
-        if (inlineEditor) {
-            // Insert mention
-            const range = inlineEditor.getInlineRange();
-            
-            inlineEditor.insertText(range, mentionText, {
-                link: profileUrl,
-                bold: true,
-                color: '#000000',
-                attributes: {
-                    "data-mention-id": member.id,
-                    "data-mention-name": member.name,
-                    "data-mention-email": member.email,
-                    "data-mention-image": member.image,
-                    "class": "qwise-mention"
-                }
-            });
-
-            // Move cursor after mention
-            const newPos = range.index + mentionText.length;
-            inlineEditor.setInlineRange({ index: newPos, length: 0 });
-
-            // Add space
-            inlineEditor.insertText(inlineEditor.getInlineRange(), " ");
-
-            // Clear slash menu
-            inlineEditor.clear();
-        }
-
-        toast(rootComponent.host, `Mentioned ${member.name}`);
-    } catch (error) {
-        console.error("Error inserting mention:", error);
-    }
-
-    closePopup();
-}
-
-    
-    function closePopup() {
-        hideHoverCard(); // Clean up hover card on close
-        document.body.removeChild(overlay);
-    }
-    
-    searchInput.addEventListener('input', (e) => {
-        selectedIndex = 0;
-        renderMembers(e.target.value);
-    });
-    
-    searchInput.addEventListener('keydown', (e) => {
-        if (e.key === 'ArrowDown') {
-            e.preventDefault();
-            selectedIndex = Math.min(selectedIndex + 1, filteredMembers.length - 1);
-            renderMembers(searchInput.value);
-            
-            const selectedItem = membersList.children[selectedIndex];
-            if (selectedItem) {
-                selectedItem.scrollIntoView({ block: 'nearest' });
-            }
-        } else if (e.key === 'ArrowUp') {
-            e.preventDefault();
-            selectedIndex = Math.max(selectedIndex - 1, 0);
-            renderMembers(searchInput.value);
-            
-            const selectedItem = membersList.children[selectedIndex];
-            if (selectedItem) {
-                selectedItem.scrollIntoView({ block: 'nearest' });
-            }
-        } else if (e.key === 'Enter') {
-            e.preventDefault();
-            if (filteredMembers[selectedIndex]) {
-                selectMember(filteredMembers[selectedIndex]);
-            }
-        } else if (e.key === 'Escape') {
-            e.preventDefault();
-            closePopup();
-        }
-    });
-    
-    overlay.addEventListener('click', (e) => {
-        if (e.target === overlay) {
-            closePopup();
-        }
-    });
-    
-    renderMembers();
-    
-    popup.appendChild(searchContainer);
-    popup.appendChild(membersList);
-    overlay.appendChild(popup);
-    document.body.appendChild(overlay);
-    
-    setTimeout(() => searchInput.focus(), 100);
-}
-//# sourceMappingURL=config.js.map
-
-
-
-
-
-
-
-
-// Function to render cover from a block
-function renderCoverImageFromBlock(rootComponent, coverBlock) {
-    const doc = rootComponent.doc;
-    const coverData = coverBlock.coverData;
-    
-    if (!coverData || !coverData.blobId) return;
-    
-    // Retrieve blob from storage
-    const storage = doc.collection.blobSync;
-    storage.get(coverData.blobId).then(blob => {
-        if (!blob) return;
-        
-        const reader = new FileReader();
-        reader.onload = (e) => {
-            createCoverUI(rootComponent, coverBlock, e.target.result, coverData);
-        };
-        reader.readAsDataURL(blob);
-    });
-}
-
-function createCoverUI(rootComponent, coverBlock, imageData, coverData) {
-    const doc = rootComponent.doc;
-    
-    // Find editor root
-    let editorRoot = rootComponent.host;
-    while (editorRoot.parentElement) {
-        if (editorRoot.classList?.contains('affine-editor-container') ||
-            editorRoot.tagName === 'AFFINE-EDITOR-CONTAINER' ||
-            editorRoot.parentElement.tagName === 'BODY') {
-            break;
-        }
-        editorRoot = editorRoot.parentElement;
-    }
-    
-    // Remove existing cover if present
-    const existingCover = document.querySelector('.page-cover-container');
-    if (existingCover) existingCover.remove();
-    
-    // Create cover container
-    const coverContainer = document.createElement('div');
-    coverContainer.className = 'page-cover-container';
-    coverContainer.dataset.blockId = coverBlock.id;
-    coverContainer.style.cssText = `
-        width: 100%;
-        height: ${coverData.height || 200}px;
-        min-height: 200px;
-        max-height: 500px;
-        position: relative;
-        margin-bottom: 24px;
-        overflow: hidden;
-        background: #f0f0f0;
-        border-radius: 0;
-    `;
-    
-    // Add image
-    const img = document.createElement('img');
-    img.src = imageData;
-    img.style.cssText = `
-        width: 100%;
-        height: 100%;
-        object-fit: ${coverData.fitMode || 'contain'};
-        object-position: center;
-        display: block;
-        background: #f5f5f5;
-    `;
-    
-    // Add controls
-    const controls = document.createElement('div');
-    controls.className = 'cover-controls';
-    controls.style.cssText = `
-        position: absolute;
-        bottom: 16px;
-        right: 16px;
-        display: flex;
-        gap: 8px;
-        opacity: 0;
-        transition: opacity 0.2s;
-        z-index: 10;
-    `;
-    
-    // Fit mode button
-    let currentFitMode = coverData.fitMode || 'contain';
-    const fitBtn = createControlButton(`Fit: ${currentFitMode}`, () => {
-        if (currentFitMode === 'contain') {
-            currentFitMode = 'cover';
-            img.style.objectFit = 'cover';
-        } else if (currentFitMode === 'cover') {
-            currentFitMode = 'fill';
-            img.style.objectFit = 'fill';
-        } else {
-            currentFitMode = 'contain';
-            img.style.objectFit = 'contain';
-        }
-        fitBtn.textContent = `Fit: ${currentFitMode}`;
-        
-        // Update block properties
-        doc.updateBlock(coverBlock, {
-            coverData: {
-                ...coverBlock.coverData,
-                fitMode: currentFitMode
-            }
-        });
-    });
-    
-    // Change button
-    const changeBtn = createControlButton('Change', async () => {
-        try {
-            const file = await openFileOrFiles({ acceptType: 'Images', multiple: false });
-            if (!file) return;
-            
-            const imageFile = Array.isArray(file) ? file[0] : file;
-            if (imageFile.size > 5 * 1024 * 1024) {
-                toast(rootComponent.host, 'Image too large. Max 5MB.');
-                return;
-            }
-            
-            const storage = doc.collection.blobSync;
-            const newBlobId = await storage.set(imageFile);
-            
-            // Update block
-            doc.updateBlock(coverBlock, {
-                coverData: {
-                    ...coverBlock.coverData,
-                    blobId: newBlobId
-                }
-            });
-            
-            // Update display
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                img.src = e.target.result;
-                toast(rootComponent.host, 'Cover updated');
-            };
-            reader.readAsDataURL(imageFile);
-        } catch (error) {
-            console.error('Error updating cover:', error);
-        }
-    });
-    
-    // Remove button
-    const removeBtn = createControlButton('Remove', () => {
-        coverContainer.remove();
-        doc.deleteBlock(coverBlock);
-        toast(rootComponent.host, 'Cover removed');
-    });
-    
-    controls.appendChild(fitBtn);
-    controls.appendChild(changeBtn);
-    controls.appendChild(removeBtn);
-    
-    // Resize handle
-    const resizeHandle = document.createElement('div');
-    resizeHandle.style.cssText = `
-        position: absolute;
-        bottom: 0;
-        left: 0;
-        right: 0;
-        height: 8px;
-        background: rgba(0, 0, 0, 0.1);
-        cursor: ns-resize;
-        opacity: 0;
-        transition: opacity 0.2s;
-        z-index: 10;
-    `;
-    
-    let isResizing = false;
-    let startY = 0;
-    let startHeight = 0;
-    
-    resizeHandle.addEventListener('mousedown', (e) => {
-        isResizing = true;
-        startY = e.clientY;
-        startHeight = coverContainer.offsetHeight;
-        e.preventDefault();
-    });
-    
-    document.addEventListener('mousemove', (e) => {
-        if (!isResizing) return;
-        const newHeight = Math.max(200, Math.min(500, startHeight + (e.clientY - startY)));
-        coverContainer.style.height = newHeight + 'px';
-    });
-    
-    document.addEventListener('mouseup', () => {
-        if (isResizing) {
-            isResizing = false;
-            doc.updateBlock(coverBlock, {
-                coverData: {
-                    ...coverBlock.coverData,
-                    height: parseInt(coverContainer.style.height)
-                }
-            });
-        }
-    });
-    
-    // Hover effects
-    coverContainer.addEventListener('mouseenter', () => {
-        controls.style.opacity = '1';
-        resizeHandle.style.opacity = '1';
-    });
-    
-    coverContainer.addEventListener('mouseleave', () => {
-        controls.style.opacity = '0';
-        resizeHandle.style.opacity = '0';
-    });
-    
-    coverContainer.appendChild(img);
-    coverContainer.appendChild(controls);
-    coverContainer.appendChild(resizeHandle);
-    
-    const parent = editorRoot.parentElement || document.body;
-    parent.insertBefore(coverContainer, editorRoot);
-}
-
-// Initialize covers on document load
-function initializeCoverImages(rootComponent) {
-    const doc = rootComponent.doc;
-    
-    // Find all cover blocks
-    const allBlocks = doc.getBlocks();
-    allBlocks.forEach(block => {
-        if (block.model.flavour === 'affine:paragraph' && 
-            block.model.type === 'cover-image' &&
-            block.model.coverData) {
-            renderCoverImageFromBlock(rootComponent, block.model);
-        }
-    });
-}
-
-
-
-
-
-
-
-
-
-
-
-function addCoverImageToPage(rootComponent, imageData) {
-    const doc = rootComponent.doc;
-    
-    // ✅ SAVE TO DOCUMENT METADATA
-    doc.collection.meta.setDocMeta(doc.id, {
-        ...doc.collection.meta.getDocMeta(doc.id),
-        coverImage: imageData,
-        coverHeight: 200,
-        coverFitMode: 'contain'
-    });
-    
-    // Find the actual editor root container - need to go higher up in the DOM
-    let editorRoot = rootComponent.host;
-    
-    // Try to find the affine-editor-container or the outermost container
-    while (editorRoot.parentElement) {
-        if (editorRoot.classList?.contains('affine-editor-container') ||
-            editorRoot.tagName === 'AFFINE-EDITOR-CONTAINER' ||
-            editorRoot.parentElement.tagName === 'BODY') {
-            break;
-        }
-        editorRoot = editorRoot.parentElement;
-    }
-    
-    // Check if cover already exists
-    let coverContainer = document.querySelector('.page-cover-container');
-    
-    if (!coverContainer) {
-        coverContainer = document.createElement('div');
-        coverContainer.className = 'page-cover-container';
-        coverContainer.style.cssText = `
-            width: 100%;
-            height: 200px;
-            min-height: 200px;
-            max-height: 500px;
-            position: relative;
-            margin-bottom: 24px;
-            overflow: hidden;
-            background: #f0f0f0;
-            border-radius: 0;
-        `;
-        
-        // Insert at the absolute top - before everything including title
-        const parent = editorRoot.parentElement || document.body;
-        parent.insertBefore(coverContainer, editorRoot);
-    }
-    
-    // Clear existing content
-    coverContainer.innerHTML = '';
-    
-    // Add image with contain to show full image
-    const img = document.createElement('img');
-    img.src = imageData;
-    img.style.cssText = `
-        width: 100%;
-        height: 100%;
-        object-fit: contain;
-        object-position: center;
-        display: block;
-        background: #f5f5f5;
-    `;
-    
-    // Add controls overlay
-    const controls = document.createElement('div');
-    controls.className = 'cover-controls';
-    controls.style.cssText = `
-        position: absolute;
-        bottom: 16px;
-        right: 16px;
-        display: flex;
-        gap: 8px;
-        opacity: 0;
-        transition: opacity 0.2s;
-        z-index: 10;
-    `;
-    
-    // Fit mode toggle button
-    let fitMode = 'fill'; // contain, cover, fill
-    img.style.objectFit = 'fill';
-
-    const fitBtn = createControlButton('Fit: Fill', () => {
-        if (fitMode === 'fill') {
-            fitMode = 'cover';
-            fitBtn.textContent = 'Fit: Cover';
-            img.style.objectFit = 'cover';
-        } else if (fitMode === 'cover') {
-            fitMode = 'contain';
-            fitBtn.textContent = 'Fit: Contain';
-            img.style.objectFit = 'contain';
-        } else {
-            fitMode = 'fill';
-            fitBtn.textContent = 'Fit: Fill';
-            img.style.objectFit = 'fill';
-        }
-        
-        // ✅ SAVE FIT MODE TO METADATA
-        const currentMeta = doc.collection.meta.getDocMeta(doc.id) || {};
-        doc.collection.meta.setDocMeta(doc.id, {
-            ...currentMeta,
-            coverFitMode: fitMode
-        });
-    });
-    
-    // Change image button
-    const changeBtn = createControlButton('Change', () => {
-        const input = document.createElement('input');
-        input.type = 'file';
-        input.accept = 'image/*';
-        input.onchange = (e) => {
-            const file = e.target.files?.[0];
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = (event) => {
-                    img.src = event.target.result;
-                    
-                    // ✅ SAVE NEW IMAGE TO METADATA
-                    const currentMeta = doc.collection.meta.getDocMeta(doc.id) || {};
-                    doc.collection.meta.setDocMeta(doc.id, {
-                        ...currentMeta,
-                        coverImage: event.target.result
-                    });
-                    
-                    toast(rootComponent.host, 'Cover image updated');
-                };
-                reader.readAsDataURL(file);
-            }
-        };
-        input.click();
-    });
-    
-    // Remove button
-    const removeBtn = createControlButton('Remove', () => {
-        coverContainer.remove();
-        
-        // ✅ REMOVE FROM METADATA
-        const currentMeta = doc.collection.meta.getDocMeta(doc.id) || {};
-        delete currentMeta.coverImage;
-        delete currentMeta.coverHeight;
-        delete currentMeta.coverFitMode;
-        doc.collection.meta.setDocMeta(doc.id, currentMeta);
-        
-        toast(rootComponent.host, 'Cover image removed');
-    });
-    
-    controls.appendChild(fitBtn);
-    controls.appendChild(changeBtn);
-    controls.appendChild(removeBtn);
-    
-    // Show controls on hover
-    coverContainer.addEventListener('mouseenter', () => {
-        controls.style.opacity = '1';
-        resizeHandle.style.opacity = '1';
-    });
-    
-    coverContainer.addEventListener('mouseleave', () => {
-        controls.style.opacity = '0';
-        resizeHandle.style.opacity = '0';
-    });
-    
-    // Add resize handle
-    const resizeHandle = document.createElement('div');
-    resizeHandle.style.cssText = `
-        position: absolute;
-        bottom: 0;
-        left: 0;
-        right: 0;
-        height: 8px;
-        background: rgba(0, 0, 0, 0.1);
-        cursor: ns-resize;
-        opacity: 0;
-        transition: opacity 0.2s;
-        z-index: 10;
-    `;
-    
-    // Resize functionality
-    let isResizing = false;
-    let startY = 0;
-    let startHeight = 0;
-    
-    resizeHandle.addEventListener('mousedown', (e) => {
-        isResizing = true;
-        startY = e.clientY;
-        startHeight = coverContainer.offsetHeight;
-        e.preventDefault();
-        document.body.style.userSelect = 'none';
-    });
-    
-    document.addEventListener('mousemove', (e) => {
-        if (!isResizing) return;
-        
-        const deltaY = e.clientY - startY;
-        const newHeight = Math.max(200, Math.min(500, startHeight + deltaY));
-        coverContainer.style.height = newHeight + 'px';
-    });
-    
-    document.addEventListener('mouseup', () => {
-        if (isResizing) {
-            isResizing = false;
-            document.body.style.userSelect = '';
-            
-            // ✅ SAVE HEIGHT TO METADATA
-            const currentMeta = doc.collection.meta.getDocMeta(doc.id) || {};
-            doc.collection.meta.setDocMeta(doc.id, {
-                ...currentMeta,
-                coverHeight: parseInt(coverContainer.style.height)
-            });
-        }
-    });
-    
-    coverContainer.appendChild(img);
-    coverContainer.appendChild(controls);
-    coverContainer.appendChild(resizeHandle);
-    
-    toast(rootComponent.host, 'Cover image added');
-}
-
-// ✅ ADD THIS FUNCTION TO RESTORE COVER ON LOAD
-async function restoreCoverImageFromDoc(rootComponent) {
-    const doc = rootComponent.doc;
-    const docMeta = doc.collection.meta.getDocMeta(doc.id);
-    
-    if (docMeta && docMeta.coverImage) {
-        try {
-            // Retrieve blob from storage
-            const storage = doc.collection.blobSync;
-            const blob = await storage.get(docMeta.coverImage);
-            
-            if (blob) {
-                const reader = new FileReader();
-                reader.onload = (e) => {
-                    renderCoverImage(rootComponent, e.target.result, docMeta.coverImage);
-                };
-                reader.readAsDataURL(blob);
-            }
-        } catch (error) {
-            console.error('Error restoring cover image:', error);
-        }
-    }
-}
-
-// Helper to create control buttons
-function createControlButton(text, onClick) {
-    const btn = document.createElement('button');
-    btn.textContent = text;
-    btn.style.cssText = `
-        background: white;
-        border: 1px solid #ddd;
-        border-radius: 4px;
-        padding: 6px 12px;
-        font-size: 12px;
-        cursor: pointer;
-        transition: background 0.2s;
-        color:black;
-    `;
-    
-    btn.addEventListener('mouseenter', () => {
-        btn.style.background = '#f5f5f5';
-    });
-    
-    btn.addEventListener('mouseleave', () => {
-        btn.style.background = 'white';
-    });
-    
-    btn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        onClick();
-    });
-    
-    return btn;
-}
-
-
-
-function addCoverImageToPagePersistent(rootComponent, imageData) {
-    const doc = rootComponent.doc;
-    
-    // Store cover in document metadata
-    doc.meta.setMeta('coverImage', {
-        url: imageData,
-        height: 200
-    });
-    
-    // Then render it (same as above)
-    addCoverImageToPage(rootComponent, imageData);
-}
-
-// On document load, check for cover and render it
-function initializeCoverImage(rootComponent) {
-    const doc = rootComponent.doc;
-    const coverMeta = doc.meta.getMeta('coverImage');
-    
-    if (coverMeta && coverMeta.url) {
-        addCoverImageToPage(rootComponent, coverMeta.url);
-        
-        // Restore height
-        setTimeout(() => {
-            const coverContainer = document.querySelector('.page-cover-container');
-            if (coverContainer && coverMeta.height) {
-                coverContainer.style.height = coverMeta.height + 'px';
-            }
-        }, 100);
-    }
-}
-function renderCoverImage(rootComponent, imageData, blobId) {
-    const doc = rootComponent.doc;
-    const docMeta = doc.collection.meta.getDocMeta(doc.id) || {};
-    
-    // Find the editor root container
-    let editorRoot = rootComponent.host;
-    
-    while (editorRoot.parentElement) {
-        if (editorRoot.classList?.contains('affine-editor-container') ||
-            editorRoot.tagName === 'AFFINE-EDITOR-CONTAINER' ||
-            editorRoot.parentElement.tagName === 'BODY') {
-            break;
-        }
-        editorRoot = editorRoot.parentElement;
-    }
-    
-    // Check if cover already exists
-    let coverContainer = document.querySelector('.page-cover-container');
-    
-    if (!coverContainer) {
-        coverContainer = document.createElement('div');
-        coverContainer.className = 'page-cover-container';
-        coverContainer.style.cssText = `
-            width: 100%;
-            height: ${docMeta.coverHeight || 200}px;
-            min-height: 200px;
-            max-height: 500px;
-            position: relative;
-            margin-bottom: 24px;
-            overflow: hidden;
-            background: #f0f0f0;
-            border-radius: 0;
-        `;
-        
-        // Insert at the absolute top
-        const parent = editorRoot.parentElement || document.body;
-        parent.insertBefore(coverContainer, editorRoot);
-    }
-    
-    // Clear existing content
-    coverContainer.innerHTML = '';
-    
-    // Store blobId on the container
-    coverContainer.dataset.blobId = blobId;
-    
-    // Add image
-    const img = document.createElement('img');
-    img.src = imageData;
-    const fitMode = docMeta.coverFitMode || 'contain';
-    img.style.cssText = `
-        width: 100%;
-        height: 100%;
-        object-fit: ${fitMode};
-        object-position: center;
-        display: block;
-        background: #f5f5f5;
-    `;
-    
-    // Add controls overlay
-    const controls = document.createElement('div');
-    controls.className = 'cover-controls';
-    controls.style.cssText = `
-        position: absolute;
-        bottom: 16px;
-        right: 16px;
-        display: flex;
-        gap: 8px;
-        opacity: 0;
-        transition: opacity 0.2s;
-        z-index: 10;
-    `;
-    
-    // Fit mode toggle button
-    let currentFitMode = fitMode;
-    const fitModeText = currentFitMode.charAt(0).toUpperCase() + currentFitMode.slice(1);
-    const fitBtn = createControlButton(`Fit: ${fitModeText}`, () => {
-        if (currentFitMode === 'contain') {
-            currentFitMode = 'cover';
-            fitBtn.textContent = 'Fit: Cover';
-            img.style.objectFit = 'cover';
-        } else if (currentFitMode === 'cover') {
-            currentFitMode = 'fill';
-            fitBtn.textContent = 'Fit: Fill';
-            img.style.objectFit = 'fill';
-        } else {
-            currentFitMode = 'contain';
-            fitBtn.textContent = 'Fit: Contain';
-            img.style.objectFit = 'contain';
-        }
-        
-        // ✅ Save fit mode - Using correct API
-        const currentMeta = doc.collection.meta.getDocMeta(doc.id) || {};
-        doc.collection.meta.setDocMeta(doc.id, {
-            ...currentMeta,
-            coverFitMode: currentFitMode
-        });
-    });
-    
-    // Change image button
-    const changeBtn = createControlButton('Change', async () => {
-        try {
-            const file = await openFileOrFiles({ acceptType: 'Images', multiple: false });
-            if (!file) return;
-            
-            const imageFile = Array.isArray(file) ? file[0] : file;
-            
-            if (imageFile.size > 5 * 1024 * 1024) {
-                toast(rootComponent.host, 'Image too large. Max 5MB.');
-                return;
-            }
-            
-            // Store new blob
-            const storage = doc.collection.blobSync;
-            const newBlobId = await storage.set(imageFile);
-            
-            // ✅ Update metadata - Using correct API
-            const currentMeta = doc.collection.meta.getDocMeta(doc.id) || {};
-            doc.collection.meta.setDocMeta(doc.id, {
-                ...currentMeta,
-                coverImage: newBlobId
-            });
-            
-            // Update display
-            const reader = new FileReader();
-            reader.onload = (event) => {
-                img.src = event.target.result;
-                coverContainer.dataset.blobId = newBlobId;
-                toast(rootComponent.host, 'Cover image updated');
-            };
-            reader.readAsDataURL(imageFile);
-            
-        } catch (error) {
-            console.error('Error updating cover:', error);
-            toast(rootComponent.host, 'Failed to update cover image');
-        }
-    });
-    
-    // Remove button
-    const removeBtn = createControlButton('Remove', () => {
-        coverContainer.remove();
-        
-        // ✅ Remove from metadata - Using correct API
-        const currentMeta = doc.collection.meta.getDocMeta(doc.id) || {};
-        const { coverImage, coverHeight, coverFitMode, ...rest } = currentMeta;
-        doc.collection.meta.setDocMeta(doc.id, rest);
-        
-        toast(rootComponent.host, 'Cover image removed');
-    });
-    
-    controls.appendChild(fitBtn);
-    controls.appendChild(changeBtn);
-    controls.appendChild(removeBtn);
-    
-    // Add resize handle
-    const resizeHandle = document.createElement('div');
-    resizeHandle.style.cssText = `
-        position: absolute;
-        bottom: 0;
-        left: 0;
-        right: 0;
-        height: 8px;
-        background: rgba(0, 0, 0, 0.1);
-        cursor: ns-resize;
-        opacity: 0;
-        transition: opacity 0.2s;
-        z-index: 10;
-    `;
-    
-    // Resize functionality
-    let isResizing = false;
-    let startY = 0;
-    let startHeight = 0;
-    
-    resizeHandle.addEventListener('mousedown', (e) => {
-        isResizing = true;
-        startY = e.clientY;
-        startHeight = coverContainer.offsetHeight;
-        e.preventDefault();
-        document.body.style.userSelect = 'none';
-    });
-    
-    document.addEventListener('mousemove', (e) => {
-        if (!isResizing) return;
-        
-        const deltaY = e.clientY - startY;
-        const newHeight = Math.max(200, Math.min(500, startHeight + deltaY));
-        coverContainer.style.height = newHeight + 'px';
-    });
-    
-    document.addEventListener('mouseup', () => {
-        if (isResizing) {
-            isResizing = false;
-            document.body.style.userSelect = '';
-            
-            // ✅ Save height - Using correct API
-            const currentMeta = doc.collection.meta.getDocMeta(doc.id) || {};
-            doc.collection.meta.setDocMeta(doc.id, {
-                ...currentMeta,
-                coverHeight: parseInt(coverContainer.style.height)
-            });
-        }
-    });
-    
-    // Show/hide controls on hover
-    coverContainer.addEventListener('mouseenter', () => {
-        controls.style.opacity = '1';
-        resizeHandle.style.opacity = '1';
-    });
-    
-    coverContainer.addEventListener('mouseleave', () => {
-        controls.style.opacity = '0';
-        resizeHandle.style.opacity = '0';
-    });
-    
-    // Append all elements
-    coverContainer.appendChild(img);
-    coverContainer.appendChild(controls);
-    coverContainer.appendChild(resizeHandle);
-}
-
-
-
-
-
-
-
-
-
-function buildEditorUrl(doc) {
-    const fileType = doc.file_type.toLowerCase();
-    
-    // For HTML files - use editorjs
-    if (fileType === 'html') {
-        const params = new URLSearchParams({
-            mode: 'update',
-            fileId: doc.vector_document_id,
-            fileName: doc.filename,
-            fileUrl: doc.file_url,
-            fileType: doc.file_type
-        });
-        return `${process.env.NEXT_PUBLIC_APP_BASE_URL}/editorjs?${params.toString()}`;
-    }
-    
-    // For Office files (xlsx, pptx, docx) - use alleditor
-    if (['xlsx', 'pptx', 'docx','.pptx','.xslx','.docx'].includes(fileType)) {
-        const params = new URLSearchParams({
-            fileUrl: doc.file_url,
-            fileName: `${doc.filename}.${doc.file_type}`,
-            viewOnly: 'false',
-            token: jwtToken, // Use the JWT token from your auth
-            userId: userInfo.userid,
-            userName:userInfo.name
-        });
-        return `${process.env.NEXT_PUBLIC_APP_BASE_URL}/alleditor?${params.toString()}`;
-    }
-    
-    // For all other file types - open the file URL directly
-    return doc.file_url;
-}
-
-// Helper function to show document selector modal
-async function showDocumentSelectorModal(host, docs) {
-    return new Promise((resolve) => {
-        // Create a simple modal overlay
-        const overlay = document.createElement('div');
-        overlay.style.cssText = `
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(0, 0, 0, 0.5);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            z-index: 9999;
-        `;
-
-        const modal = document.createElement('div');
-        modal.style.cssText = `
-            background: white;
-            border-radius: 8px;
-            padding: 24px;
-            max-width: 500px;
-            max-height: 600px;
-            overflow-y: auto;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-        `;
-
-        const title = document.createElement('h3');
-        title.textContent = 'Select a Document';
-        title.style.cssText = 'margin: 0 0 16px 0; font-size: 18px;';
-
-        const list = document.createElement('div');
-        list.style.cssText = 'display: flex; flex-direction: column; gap: 8px;';
-
-        docs.forEach(doc => {
-            const item = document.createElement('button');
-            item.textContent = `${doc.filename}.${doc.file_type}`;
-            item.style.cssText = `
-                padding: 12px;
-                border: 1px solid #e0e0e0;
-                border-radius: 4px;
-                background: white;
-                cursor: pointer;
-                text-align: left;
-                transition: background 0.2s;
-            `;
-            
-            item.onmouseover = () => item.style.background = '#f5f5f5';
-            item.onmouseout = () => item.style.background = 'white';
-            
-            item.onclick = () => {
-                document.body.removeChild(overlay);
-                resolve(doc);
-            };
-
-            list.appendChild(item);
-        });
-
-        const cancelBtn = document.createElement('button');
-        cancelBtn.textContent = 'Cancel';
-        cancelBtn.style.cssText = `
-            margin-top: 16px;
-            padding: 8px 16px;
-            border: 1px solid #ccc;
-            border-radius: 4px;
-            background: white;
-            cursor: pointer;
-        `;
-        cancelBtn.onclick = () => {
-            document.body.removeChild(overlay);
-            resolve(null);
-        };
-
-        modal.appendChild(title);
-        modal.appendChild(list);
-        modal.appendChild(cancelBtn);
-        overlay.appendChild(modal);
-        document.body.appendChild(overlay);
-
-        // Close on overlay click
-        overlay.onclick = (e) => {
-            if (e.target === overlay) {
-                document.body.removeChild(overlay);
-                resolve(null);
-            }
-        };
-    });
-}
