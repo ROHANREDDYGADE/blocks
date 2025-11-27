@@ -15,7 +15,7 @@ import { getSurfaceBlock } from '../../../surface-ref-block/utils.js';
 import { formatDate, formatTime } from '../../utils/misc.js';
 import { slashMenuToolTips } from './tooltips/index.js';
 import { createConversionItem, createTextFormatItem, insideEdgelessText, tryRemoveEmptyLine, } from './utils.js';
-import {showMentionPopup,renderCoverImageFromBlock,createCoverUI,initializeCoverImages,addCoverImageToPage,restoreCoverImageFromDoc,createControlButton,addCoverImageToPagePersistent,initializeCoverImage,renderCoverImage,buildEditorUrl,showDocumentSelectorModal,showAppSelectorModal,showTableSelectorModal,showChartCreatorNormal,createChartPreview,insertChartAsImage,applyFilters,insertDatabaseWithData,addRefreshAction,refreshSuperAppTable,showFilterModal,showSuperAppChartCreator} from './helper-methods.js'
+import {showMentionPopup,renderCoverImageFromBlock,createCoverUI,initializeCoverImages,addCoverImageToPage,restoreCoverImageFromDoc,createControlButton,addCoverImageToPagePersistent,initializeCoverImage,renderCoverImage,buildEditorUrl,showDocumentSelectorModal,showAppSelectorModal,showTableSelectorModal,showChartCreator,createChartPreview,insertChartAsImage,applyFilters,insertDatabaseWithData,addRefreshAction,refreshSuperAppTable,showFilterModal} from './helper-methods.js'
 import Cookies from "js-cookie";
 import CryptoJS from "crypto-js";
 import Chart from "chart.js/auto";
@@ -372,105 +372,105 @@ export const defaultSlashMenuConfig = {
                     await ctx.insertedImageIds;
             },
         },
-        {
-            name: 'Cover Image',
-            description: 'Add a cover image at the top of the page.',
-            icon: ImageIcon20,
-            tooltip: 'Add cover image to page',
-            alias: ['cover', 'header', 'banner'],
-            showWhen: ({ model, rootComponent }) => {
-                const doc = rootComponent.doc;
-                const parent = doc.getParent(model);
-                return parent && parent.flavour === 'affine:note';
-            },
-            action: async ({ rootComponent, model }) => {
-                try {
-                    const doc = rootComponent.doc;
+{
+    name: 'Cover Image',
+    description: 'Add a cover image at the top of the page.',
+    icon: ImageIcon20,
+    tooltip: 'Add cover image to page',
+    alias: ['cover', 'header', 'banner'],
+    showWhen: ({ model, rootComponent }) => {
+        const doc = rootComponent.doc;
+        const parent = doc.getParent(model);
+        return parent && parent.flavour === 'affine:note';
+    },
+    action: async ({ rootComponent, model }) => {
+        try {
+            const doc = rootComponent.doc;
+            
+            // ✅ STEP 1: Find and DELETE existing cover block + its blob
+            const paragraphs = doc.getBlocksByFlavour('affine:paragraph');
+            
+            for (const blockInstance of paragraphs) {
+                const block = blockInstance.model;
+                if (block && block.type === 'cover-image' && block.coverData) {
+                    console.log("🗑️ Removing old cover block:", block.id);
                     
-                    // ✅ STEP 1: Find and DELETE existing cover block + its blob
-                    const paragraphs = doc.getBlocksByFlavour('affine:paragraph');
-                    
-                    for (const blockInstance of paragraphs) {
-                        const block = blockInstance.model;
-                        if (block && block.type === 'cover-image' && block.coverData) {
-                            console.log("🗑️ Removing old cover block:", block.id);
-                            
-                            // Delete the old blob from storage
-                            if (block.coverData.blobId) {
-                                try {
-                                    await doc.collection.blobSync.delete(block.coverData.blobId);
-                                    console.log("🗑️ Deleted old blob:", block.coverData.blobId);
-                                } catch (err) {
-                                    console.warn("⚠️ Could not delete old blob:", err);
-                                }
-                            }
-                            
-                            // Delete the cover block
-                            doc.deleteBlock(block);
-                            
-                            // Remove cover UI from DOM
-                            const oldCoverUI = document.querySelector('.page-cover-container');
-                            if (oldCoverUI) oldCoverUI.remove();
+                    // Delete the old blob from storage
+                    if (block.coverData.blobId) {
+                        try {
+                            await doc.collection.blobSync.delete(block.coverData.blobId);
+                            console.log("🗑️ Deleted old blob:", block.coverData.blobId);
+                        } catch (err) {
+                            console.warn("⚠️ Could not delete old blob:", err);
                         }
                     }
                     
-                    // ✅ STEP 2: Add new cover image
-                    const file = await openFileOrFiles({ acceptType: 'Images', multiple: false });
-                    if (!file) return;
+                    // Delete the cover block
+                    doc.deleteBlock(block);
                     
-                    const imageFile = Array.isArray(file) ? file[0] : file;
-                    
-                    if (imageFile.size > 5 * 1024 * 1024) {
-                        toast(rootComponent.host, 'Image too large. Max 5MB.');
-                        return;
-                    }
-                    
-                    // Store in BlockSuite's blob storage
-                    const storage = doc.collection.blobSync;
-                    const blobId = await storage.set(imageFile);
-                    
-                    // Create new cover block at position 0 (top)
-                    const pageBlock = doc.getBlockByFlavour('affine:page')[0];
-                    if (!pageBlock) return;
-                    
-                    const noteBlock = pageBlock.children[0];
-                    if (!noteBlock) return;
-                    
-                    const coverBlockId = doc.addBlock(
-                        'affine:paragraph',
-                        {
-                            type: 'cover-image',
-                            text: new doc.Text(''),
-                            coverData: {
-                                blobId: blobId,
-                                height: 200,
-                                fitMode: 'contain',
-                                timestamp: Date.now()
-                            }
-                        },
-                        noteBlock,
-                        0
-                    );
-                    
-                    const coverBlock = doc.getBlock(coverBlockId)?.model;
-                    
-                    if (coverBlock) {
-                        const reader = new FileReader();
-                        reader.onload = (e) => {
-                            renderCoverImageFromBlock(rootComponent, coverBlock);
-                            toast(rootComponent.host, 'Cover image added');
-                        };
-                        reader.readAsDataURL(imageFile);
-                    }
-                    
-                    tryRemoveEmptyLine(model);
-                    
-                } catch (error) {
-                    console.error('Error adding cover:', error);
-                    toast(rootComponent.host, 'Failed to add cover image');
+                    // Remove cover UI from DOM
+                    const oldCoverUI = document.querySelector('.page-cover-container');
+                    if (oldCoverUI) oldCoverUI.remove();
                 }
-            },
+            }
+            
+            // ✅ STEP 2: Add new cover image
+            const file = await openFileOrFiles({ acceptType: 'Images', multiple: false });
+            if (!file) return;
+            
+            const imageFile = Array.isArray(file) ? file[0] : file;
+            
+            if (imageFile.size > 5 * 1024 * 1024) {
+                toast(rootComponent.host, 'Image too large. Max 5MB.');
+                return;
+            }
+            
+            // Store in BlockSuite's blob storage
+            const storage = doc.collection.blobSync;
+            const blobId = await storage.set(imageFile);
+            
+            // Create new cover block at position 0 (top)
+            const pageBlock = doc.getBlockByFlavour('affine:page')[0];
+            if (!pageBlock) return;
+            
+            const noteBlock = pageBlock.children[0];
+            if (!noteBlock) return;
+            
+            const coverBlockId = doc.addBlock(
+                'affine:paragraph',
+                {
+                    type: 'cover-image',
+                    text: new doc.Text(''),
+                    coverData: {
+                        blobId: blobId,
+                        height: 200,
+                        fitMode: 'contain',
+                        timestamp: Date.now()
+                    }
+                },
+                noteBlock,
+                0
+            );
+            
+            const coverBlock = doc.getBlock(coverBlockId)?.model;
+            
+            if (coverBlock) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    renderCoverImageFromBlock(rootComponent, coverBlock);
+                    toast(rootComponent.host, 'Cover image added');
+                };
+                reader.readAsDataURL(imageFile);
+            }
+            
+            tryRemoveEmptyLine(model);
+            
+        } catch (error) {
+            console.error('Error adding cover:', error);
+            toast(rootComponent.host, 'Failed to add cover image');
         }
+    },
+}
 
 ,
 
@@ -755,8 +755,7 @@ export const defaultSlashMenuConfig = {
                     const columnKeys = Object.keys(rawTableData[0]).filter(key => !key.startsWith('_'));
 
                     // Show filter modal
-                    showFilterModal(rootComponent.host, response?.data?.fields || [], rawTableData, async (filters) => {
-
+                    showFilterModal(rootComponent.host, columnKeys, rawTableData, async (filters) => {
                         // Apply filters to data
                         const filteredData = applyFilters(rawTableData, filters);
 
@@ -773,8 +772,7 @@ export const defaultSlashMenuConfig = {
                             selectedTable,
                             filters,
                             userId,
-                            jwtToken,
-                            response?.data?.fields || []
+                            jwtToken
                         );
                     });
                 });
@@ -965,7 +963,7 @@ export const defaultSlashMenuConfig = {
             alias: ['graph', 'plot', 'line graph'],
             showWhen: ({ model }) => model.doc.schema.flavourSchemaMap.has('affine:image'),
             action: async ({ rootComponent, model }) => {
-                await showChartCreatorNormal(rootComponent, model, 'line');
+                await showChartCreator(rootComponent, model, 'line');
             }
         },
         {
@@ -976,7 +974,7 @@ export const defaultSlashMenuConfig = {
             alias: ['bar graph', 'column chart'],
             showWhen: ({ model }) => model.doc.schema.flavourSchemaMap.has('affine:image'),
             action: async ({ rootComponent, model }) => {
-                await showChartCreatorNormal(rootComponent, model, 'bar');
+                await showChartCreator(rootComponent, model, 'bar');
             }
         },
         {
@@ -987,49 +985,9 @@ export const defaultSlashMenuConfig = {
             alias: ['donut chart', 'circle graph'],
             showWhen: ({ model }) => model.doc.schema.flavourSchemaMap.has('affine:image'),
             action: async ({ rootComponent, model }) => {
-                await showChartCreatorNormal(rootComponent, model, 'pie');
+                await showChartCreator(rootComponent, model, 'pie');
             }
-        },
-        { groupName: 'Charts' },
-{
-    name: 'SuperApp Line Chart',
-    description: 'Create a line chart from SuperApp data.',
-    icon: ImageIcon20,
-    tooltip: 'Insert line chart from SuperApp',
-    alias: ['graph', 'plot', 'line graph'],
-    showWhen: ({ model }) => 
-        model.doc.schema.flavourSchemaMap.has('affine:image') &&
-        model.doc.schema.flavourSchemaMap.has('affine:database'),
-    action: async ({ rootComponent, model }) => {
-        await showSuperAppChartCreator(rootComponent, model, 'line');
-    }
-},
-{
-    name: 'SuperApp Bar Chart',
-    description: 'Create a bar chart from SuperApp data.',
-    icon: ImageIcon20,
-    tooltip: 'Insert bar chart from SuperApp',
-    alias: ['bar graph', 'column chart'],
-    showWhen: ({ model }) => 
-        model.doc.schema.flavourSchemaMap.has('affine:image') &&
-        model.doc.schema.flavourSchemaMap.has('affine:database'),
-    action: async ({ rootComponent, model }) => {
-        await showSuperAppChartCreator(rootComponent, model, 'bar');
-    }
-},
-{
-    name: 'SuperApp Pie Chart',
-    description: 'Create a pie chart from SuperApp data.',
-    icon: ImageIcon20,
-    tooltip: 'Insert pie chart from SuperApp',
-    alias: ['donut chart', 'circle graph'],
-    showWhen: ({ model }) => 
-        model.doc.schema.flavourSchemaMap.has('affine:image') &&
-        model.doc.schema.flavourSchemaMap.has('affine:database'),
-    action: async ({ rootComponent, model }) => {
-        await showSuperAppChartCreator(rootComponent, model, 'pie');
-    }
-},
+        }
 
     ],
 };

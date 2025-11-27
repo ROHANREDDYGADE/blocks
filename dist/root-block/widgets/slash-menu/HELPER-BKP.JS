@@ -18,7 +18,6 @@ import { slashMenuToolTips } from './tooltips/index.js';
 import { createConversionItem, createTextFormatItem, insideEdgelessText, tryRemoveEmptyLine, } from './utils.js';
 import Cookies from "js-cookie";
 import CryptoJS from "crypto-js";
-import * as Y from 'yjs';
 // AES settings (copy yours here)
 const AesConfig = {
 SecretKey: process.env.NEXT_PUBLIC_SECRET_KEY,
@@ -1360,11 +1359,232 @@ export async function showDocumentSelectorModal(host, docs) {
 }
 
 
+export function showAppSelectorModal(host, apps, onSelect) {
+    const overlay = document.createElement('div');
+    overlay.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.5);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 10000;
+    `;
+    
+    const modal = document.createElement('div');
+    modal.style.cssText = `
+        background: white;
+        border-radius: 8px;
+        padding: 24px;
+        max-width: 500px;
+        max-height: 600px;
+        overflow-y: auto;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    `;
+    
+    const title = document.createElement('h3');
+    title.textContent = 'Select an App';
+    title.style.cssText = 'margin: 0 0 16px 0; font-size: 18px; color: #333;';
+    
+    const list = document.createElement('div');
+    list.style.cssText = 'display: flex; flex-direction: column; gap: 8px;';
+    
+    if (apps.length === 0) {
+        const noData = document.createElement('p');
+        noData.textContent = 'No apps found';
+        noData.style.cssText = 'text-align: center; color: #999; padding: 20px;';
+        list.appendChild(noData);
+    } else {
+        apps.forEach(app => {
+            const item = document.createElement('button');
+            item.style.cssText = `
+                padding: 16px;
+                border: 1px solid #e0e0e0;
+                border-radius: 6px;
+                background: white;
+                cursor: pointer;
+                text-align: left;
+                transition: all 0.2s;
+            `;
+            
+            const appTitle = document.createElement('div');
+            appTitle.textContent = app.app_name;
+            appTitle.style.cssText = 'font-weight: 600; color: #333; margin-bottom: 4px;';
+            
+            const appDesc = document.createElement('div');
+            appDesc.textContent = app.description || 'No description';
+            appDesc.style.cssText = 'font-size: 12px; color: #666;';
+            
+            const appMeta = document.createElement('div');
+            appMeta.textContent = `${app.app_type} • ${app.created_at}`;
+            appMeta.style.cssText = 'font-size: 11px; color: #999; margin-top: 4px;';
+            
+            item.appendChild(appTitle);
+            item.appendChild(appDesc);
+            item.appendChild(appMeta);
+            
+            item.onmouseover = () => {
+                item.style.background = '#f5f5f5';
+                item.style.borderColor = '#667eea';
+            };
+            item.onmouseout = () => {
+                item.style.background = 'white';
+                item.style.borderColor = '#e0e0e0';
+            };
+            
+            item.onclick = () => {
+                document.body.removeChild(overlay);
+                onSelect(app);
+            };
+            
+            list.appendChild(item);
+        });
+    }
+    
+    const cancelBtn = document.createElement('button');
+    cancelBtn.textContent = 'Cancel';
+    cancelBtn.style.cssText = `
+        margin-top: 16px;
+        padding: 10px 20px;
+        border: 1px solid #ccc;
+        border-radius: 6px;
+        background: white;
+        cursor: pointer;
+        width: 100%;
+        transition: background 0.2s;
+    `;
+    cancelBtn.onmouseover = () => cancelBtn.style.background = '#f5f5f5';
+    cancelBtn.onmouseout = () => cancelBtn.style.background = 'white';
+    cancelBtn.onclick = () => document.body.removeChild(overlay);
+    
+    modal.appendChild(title);
+    modal.appendChild(list);
+    modal.appendChild(cancelBtn);
+    overlay.appendChild(modal);
+    document.body.appendChild(overlay);
+    
+    overlay.onclick = (e) => {
+        if (e.target === overlay) {
+            document.body.removeChild(overlay);
+        }
+    };
+}
+
+export function showTableSelectorModal(host, tables, onSelect) {
+    const overlay = document.createElement('div');
+    overlay.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.5);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 10000;
+    `;
+    
+    const modal = document.createElement('div');
+    modal.style.cssText = `
+        background: white;
+        border-radius: 8px;
+        padding: 24px;
+        max-width: 500px;
+        max-height: 600px;
+        overflow-y: auto;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    `;
+    
+    const title = document.createElement('h3');
+    title.textContent = 'Select a Table';
+    title.style.cssText = 'margin: 0 0 16px 0; font-size: 18px; color: #333;';
+    
+    const list = document.createElement('div');
+    list.style.cssText = 'display: flex; flex-direction: column; gap: 8px;';
+    
+    if (tables.length === 0) {
+        const noData = document.createElement('p');
+        noData.textContent = 'No tables found';
+        noData.style.cssText = 'text-align: center; color: #999; padding: 20px;';
+        list.appendChild(noData);
+    } else {
+        tables.forEach(table => {
+            const item = document.createElement('button');
+            item.style.cssText = `
+                padding: 16px;
+                border: 1px solid #e0e0e0;
+                border-radius: 6px;
+                background: white;
+                cursor: pointer;
+                text-align: left;
+                transition: all 0.2s;
+            `;
+            
+            const tableName = document.createElement('div');
+            tableName.textContent = table.name;
+            tableName.style.cssText = 'font-weight: 600; color: #333; margin-bottom: 4px;';
+            
+            const tableType = document.createElement('div');
+            tableType.textContent = table.table_type || 'Standard Table';
+            tableType.style.cssText = 'font-size: 12px; color: #666;';
+            
+            item.appendChild(tableName);
+            item.appendChild(tableType);
+            
+            item.onmouseover = () => {
+                item.style.background = '#f5f5f5';
+                item.style.borderColor = '#667eea';
+            };
+            item.onmouseout = () => {
+                item.style.background = 'white';
+                item.style.borderColor = '#e0e0e0';
+            };
+            
+            item.onclick = () => {
+                document.body.removeChild(overlay);
+                onSelect(table);
+            };
+            
+            list.appendChild(item);
+        });
+    }
+    
+    const cancelBtn = document.createElement('button');
+    cancelBtn.textContent = 'Cancel';
+    cancelBtn.style.cssText = `
+        margin-top: 16px;
+        padding: 10px 20px;
+        border: 1px solid #ccc;
+        border-radius: 6px;
+        background: white;
+        cursor: pointer;
+        width: 100%;
+        transition: background 0.2s;
+    `;
+    cancelBtn.onmouseover = () => cancelBtn.style.background = '#f5f5f5';
+    cancelBtn.onmouseout = () => cancelBtn.style.background = 'white';
+    cancelBtn.onclick = () => document.body.removeChild(overlay);
+    
+    modal.appendChild(title);
+    modal.appendChild(list);
+    modal.appendChild(cancelBtn);
+    overlay.appendChild(modal);
+    document.body.appendChild(overlay);
+    
+    overlay.onclick = (e) => {
+        if (e.target === overlay) {
+            document.body.removeChild(overlay);
+        }
+    };
+}
 
 
 
-
-export async function showChartCreatorNormal(rootComponent, model, chartType) {
+export async function showChartCreator(rootComponent, model, chartType) {
     return new Promise((resolve) => {
         const overlay = document.createElement('div');
         overlay.style.cssText = `
@@ -1728,26 +1948,13 @@ export async function showChartCreatorNormal(rootComponent, model, chartType) {
         };
     });
 }
-function generateDistinctColors(count) {
-    const colors = [];
-    const goldenAngle = 137.508; // prevents repetition
-
-    for (let i = 0; i < count; i++) {
-        const hue = (i * goldenAngle) % 360;
-        colors.push(`hsl(${hue}, 65%, 55%)`);
-    }
-
-    return colors;
-}
 
 export function createChartPreview(canvas, chartType, title, labels, data) {
     const ctx = canvas.getContext('2d');
     
     // Clear any existing chart
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    const colors = chartType === "pie"
-        ? generateDistinctColors(labels.length)
-        : 'rgba(102, 126, 234, 0.6)';
+
     const config = {
         type: chartType,
         data: {
@@ -1755,7 +1962,10 @@ export function createChartPreview(canvas, chartType, title, labels, data) {
             datasets: [{
                 label: title || 'Dataset',
                 data: data,
-                backgroundColor: colors,
+                backgroundColor: chartType === 'pie' ? [
+                    '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF', 
+                    '#FF9F40', '#FF6384', '#C9CBCF', '#4BC0C0', '#FF6384'
+                ] : 'rgba(102, 126, 234, 0.6)',
                 borderColor: chartType === 'pie' ? '#fff' : 'rgba(102, 126, 234, 1)',
                 borderWidth: 2
             }]
@@ -1831,8 +2041,7 @@ export async function insertChartAsImage(rootComponent, model, canvas, chartTitl
     }
 }
 
-
-export function showAppSelectorModal(host, apps, onSelect) {
+export function showFilterModal(host, columnKeys, tableData, onApply) {
     const overlay = document.createElement('div');
     overlay.style.cssText = `
         position: fixed;
@@ -1852,233 +2061,9 @@ export function showAppSelectorModal(host, apps, onSelect) {
         background: white;
         border-radius: 8px;
         padding: 24px;
-        max-width: 500px;
-        max-height: 600px;
+        max-width: 600px;
+        max-height: 80vh;
         overflow-y: auto;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-    `;
-    
-    const title = document.createElement('h3');
-    title.textContent = 'Select an App';
-    title.style.cssText = 'margin: 0 0 16px 0; font-size: 18px; color: #333;';
-    
-    const list = document.createElement('div');
-    list.style.cssText = 'display: flex; flex-direction: column; gap: 8px;';
-    
-    if (apps.length === 0) {
-        const noData = document.createElement('p');
-        noData.textContent = 'No apps found';
-        noData.style.cssText = 'text-align: center; color: #999; padding: 20px;';
-        list.appendChild(noData);
-    } else {
-        apps.forEach(app => {
-            const item = document.createElement('button');
-            item.style.cssText = `
-                padding: 16px;
-                border: 1px solid #e0e0e0;
-                border-radius: 6px;
-                background: white;
-                cursor: pointer;
-                text-align: left;
-                transition: all 0.2s;
-            `;
-            
-            const appTitle = document.createElement('div');
-            appTitle.textContent = app.app_name;
-            appTitle.style.cssText = 'font-weight: 600; color: #333; margin-bottom: 4px;';
-            
-            const appDesc = document.createElement('div');
-            appDesc.textContent = app.description || 'No description';
-            appDesc.style.cssText = 'font-size: 12px; color: #666;';
-            
-            const appMeta = document.createElement('div');
-            appMeta.textContent = `${app.app_type} • ${app.created_at}`;
-            appMeta.style.cssText = 'font-size: 11px; color: #999; margin-top: 4px;';
-            
-            item.appendChild(appTitle);
-            item.appendChild(appDesc);
-            item.appendChild(appMeta);
-            
-            item.onmouseover = () => {
-                item.style.background = '#f5f5f5';
-                item.style.borderColor = '#667eea';
-            };
-            item.onmouseout = () => {
-                item.style.background = 'white';
-                item.style.borderColor = '#e0e0e0';
-            };
-            
-            item.onclick = () => {
-                document.body.removeChild(overlay);
-                onSelect(app);
-            };
-            
-            list.appendChild(item);
-        });
-    }
-    
-    const cancelBtn = document.createElement('button');
-    cancelBtn.textContent = 'Cancel';
-    cancelBtn.style.cssText = `
-        margin-top: 16px;
-        padding: 10px 20px;
-        border: 1px solid #ccc;
-        border-radius: 6px;
-        background: white;
-        cursor: pointer;
-        width: 100%;
-        transition: background 0.2s;
-    `;
-    cancelBtn.onmouseover = () => cancelBtn.style.background = '#f5f5f5';
-    cancelBtn.onmouseout = () => cancelBtn.style.background = 'white';
-    cancelBtn.onclick = () => document.body.removeChild(overlay);
-    
-    modal.appendChild(title);
-    modal.appendChild(list);
-    modal.appendChild(cancelBtn);
-    overlay.appendChild(modal);
-    document.body.appendChild(overlay);
-    
-    overlay.onclick = (e) => {
-        if (e.target === overlay) {
-            document.body.removeChild(overlay);
-        }
-    };
-}
-
-export function showTableSelectorModal(host, tables, onSelect) {
-    const overlay = document.createElement('div');
-    overlay.style.cssText = `
-        position: fixed;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background: rgba(0, 0, 0, 0.5);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        z-index: 10000;
-    `;
-    
-    const modal = document.createElement('div');
-    modal.style.cssText = `
-        background: white;
-        border-radius: 8px;
-        padding: 24px;
-        max-width: 500px;
-        max-height: 600px;
-        overflow-y: auto;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-    `;
-    
-    const title = document.createElement('h3');
-    title.textContent = 'Select a Table';
-    title.style.cssText = 'margin: 0 0 16px 0; font-size: 18px; color: #333;';
-    
-    const list = document.createElement('div');
-    list.style.cssText = 'display: flex; flex-direction: column; gap: 8px;';
-    
-    if (tables.length === 0) {
-        const noData = document.createElement('p');
-        noData.textContent = 'No tables found';
-        noData.style.cssText = 'text-align: center; color: #999; padding: 20px;';
-        list.appendChild(noData);
-    } else {
-        tables.forEach(table => {
-            const item = document.createElement('button');
-            item.style.cssText = `
-                padding: 16px;
-                border: 1px solid #e0e0e0;
-                border-radius: 6px;
-                background: white;
-                cursor: pointer;
-                text-align: left;
-                transition: all 0.2s;
-            `;
-            
-            const tableName = document.createElement('div');
-            tableName.textContent = table.name;
-            tableName.style.cssText = 'font-weight: 600; color: #333; margin-bottom: 4px;';
-            
-            const tableType = document.createElement('div');
-            tableType.textContent = table.table_type || 'Standard Table';
-            tableType.style.cssText = 'font-size: 12px; color: #666;';
-            
-            item.appendChild(tableName);
-            item.appendChild(tableType);
-            
-            item.onmouseover = () => {
-                item.style.background = '#f5f5f5';
-                item.style.borderColor = '#667eea';
-            };
-            item.onmouseout = () => {
-                item.style.background = 'white';
-                item.style.borderColor = '#e0e0e0';
-            };
-            
-            item.onclick = () => {
-                document.body.removeChild(overlay);
-                onSelect(table);
-            };
-            
-            list.appendChild(item);
-        });
-    }
-    
-    const cancelBtn = document.createElement('button');
-    cancelBtn.textContent = 'Cancel';
-    cancelBtn.style.cssText = `
-        margin-top: 16px;
-        padding: 10px 20px;
-        border: 1px solid #ccc;
-        border-radius: 6px;
-        background: white;
-        cursor: pointer;
-        width: 100%;
-        transition: background 0.2s;
-    `;
-    cancelBtn.onmouseover = () => cancelBtn.style.background = '#f5f5f5';
-    cancelBtn.onmouseout = () => cancelBtn.style.background = 'white';
-    cancelBtn.onclick = () => document.body.removeChild(overlay);
-    
-    modal.appendChild(title);
-    modal.appendChild(list);
-    modal.appendChild(cancelBtn);
-    overlay.appendChild(modal);
-    document.body.appendChild(overlay);
-    
-    overlay.onclick = (e) => {
-        if (e.target === overlay) {
-            document.body.removeChild(overlay);
-        }
-    };
-}
-export function showFilterModal(host, fields, tableData, onApply) {
-    const overlay = document.createElement('div');
-    overlay.style.cssText = `
-        position: fixed;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background: rgba(0, 0, 0, 0.5);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        z-index: 10000;
-    `;
-    
-    const modal = document.createElement('div');
-    modal.style.cssText = `
-        background: white;
-        border-radius: 8px;
-        padding: 24px;
-        width: 90%;
-        max-width: 1000px;
-        max-height: 90vh;
-        display: flex;
-        flex-direction: column;
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
     `;
     
@@ -2090,57 +2075,11 @@ export function showFilterModal(host, fields, tableData, onApply) {
     subtitle.textContent = `Total records: ${tableData.length}`;
     subtitle.style.cssText = 'margin: 0 0 20px 0; font-size: 13px; color: #666;';
     
-    // Scrollable content area
-    const scrollContainer = document.createElement('div');
-    scrollContainer.style.cssText = `
-        flex: 1;
-        overflow-y: auto;
-        margin-bottom: 16px;
-    `;
-    
     const filtersContainer = document.createElement('div');
     filtersContainer.style.cssText = 'display: flex; flex-direction: column; gap: 12px; margin-bottom: 20px;';
     
     // Store active filters
     let activeFilters = [];
-    
-    // Get operator options based on field type
-    function getOperatorsByType(fieldType) {
-        if (fieldType === 'number') {
-            return [
-                { value: 'equals', label: 'Equals' },
-                { value: 'not_equals', label: 'Not Equals' },
-                { value: 'greater_than', label: 'Greater Than' },
-                { value: 'less_than', label: 'Less Than' },
-                { value: 'greater_or_equal', label: 'Greater or Equal' },
-                { value: 'less_or_equal', label: 'Less or Equal' },
-                { value: 'is_empty', label: 'Is Empty' },
-                { value: 'is_not_empty', label: 'Is Not Empty' }
-            ];
-        } else if (fieldType === 'date') {
-            return [
-                { value: 'is', label: 'Is' },
-                { value: 'is_not', label: 'Is Not' },
-                { value: 'is_before', label: 'Is Before' },
-                { value: 'is_after', label: 'Is After' },
-                { value: 'is_on_or_before', label: 'Is On or Before' },
-                { value: 'is_on_or_after', label: 'Is On or After' },
-                { value: 'is_empty', label: 'Is Empty' },
-                { value: 'is_not_empty', label: 'Is Not Empty' }
-            ];
-        } else { // text or default
-            return [
-                { value: 'is', label: 'Is' },
-                { value: 'is_not', label: 'Is Not' },
-                { value: 'contains', label: 'Contains' },
-                { value: 'does_not_contain', label: 'Does Not Contain' },
-                { value: 'starts_with', label: 'Starts With' },
-                { value: 'ends_with', label: 'Ends With' },
-                { value: 'is_empty', label: 'Is Empty' },
-                { value: 'is_not_empty', label: 'Is Not Empty' }
-            ];
-        }
-    }
     
     // Function to create a filter row
     function createFilterRow(filterId = Date.now()) {
@@ -2166,11 +2105,10 @@ export function showFilterModal(host, fields, tableData, onApply) {
             background: white;
         `;
         
-        fields.forEach(field => {
+        columnKeys.forEach(key => {
             const option = document.createElement('option');
-            option.value = field.name;
-            option.dataset.type = field.type;
-            option.textContent = field.label || field.name;
+            option.value = key;
+            option.textContent = key.charAt(0).toUpperCase() + key.slice(1).replace(/_/g, ' ');
             fieldSelect.appendChild(option);
         });
         
@@ -2184,102 +2122,42 @@ export function showFilterModal(host, fields, tableData, onApply) {
             background: white;
         `;
         
-        // Value input container
-        const valueContainer = document.createElement('div');
-        valueContainer.style.cssText = 'position: relative;';
+        const operators = [
+            { value: 'is', label: 'Is' },
+            { value: 'is not', label: 'Is Not' },
+            { value: 'contains', label: 'Contains' },
+            { value: 'does not contain', label: 'Does Not Contain' },
+            { value: 'starts with', label: 'Starts With' },
+            { value: 'ends with', label: 'Ends With' },
+            { value: 'is empty', label: 'Is Empty' },
+            { value: 'is not empty', label: 'Is Not Empty' }
+        ];
         
-        let valueInput = document.createElement('input');
+        operators.forEach(op => {
+            const option = document.createElement('option');
+            option.value = op.value;
+            option.textContent = op.label;
+            operatorSelect.appendChild(option);
+        });
+        
+        // Value input
+        const valueInput = document.createElement('input');
         valueInput.type = 'text';
         valueInput.placeholder = 'Enter value...';
         valueInput.style.cssText = `
-            width: 100%;
             padding: 8px;
             border: 1px solid #ddd;
             border-radius: 4px;
             font-size: 13px;
-            box-sizing: border-box;
         `;
-        valueContainer.appendChild(valueInput);
         
-        // Function to update operators and input based on field type
-        function updateFieldType() {
-            const selectedOption = fieldSelect.options[fieldSelect.selectedIndex];
-            const fieldType = selectedOption.dataset.type;
-            
-            // Update operators
-            operatorSelect.innerHTML = '';
-            const operators = getOperatorsByType(fieldType);
-            operators.forEach(op => {
-                const option = document.createElement('option');
-                option.value = op.value;
-                option.textContent = op.label;
-                operatorSelect.appendChild(option);
-            });
-            
-            // Update input type based on field type
-            const oldValue = valueInput.value;
-            valueContainer.innerHTML = '';
-            
-            if (fieldType === 'date') {
-                valueInput = document.createElement('input');
-                valueInput.type = 'date';
-                valueInput.value = oldValue;
-                valueInput.style.cssText = `
-                    width: 100%;
-                    padding: 8px;
-                    border: 1px solid #ddd;
-                    border-radius: 4px;
-                    font-size: 13px;
-                    box-sizing: border-box;
-                `;
-            } else if (fieldType === 'number') {
-                valueInput = document.createElement('input');
-                valueInput.type = 'number';
-                valueInput.placeholder = 'Enter number...';
-                valueInput.value = oldValue;
-                valueInput.style.cssText = `
-                    width: 100%;
-                    padding: 8px;
-                    border: 1px solid #ddd;
-                    border-radius: 4px;
-                    font-size: 13px;
-                    box-sizing: border-box;
-                `;
-            } else {
-                valueInput = document.createElement('input');
-                valueInput.type = 'text';
-                valueInput.placeholder = 'Enter value...';
-                valueInput.value = oldValue;
-                valueInput.style.cssText = `
-                    width: 100%;
-                    padding: 8px;
-                    border: 1px solid #ddd;
-                    border-radius: 4px;
-                    font-size: 13px;
-                    box-sizing: border-box;
-                `;
-            }
-            
-            valueContainer.appendChild(valueInput);
-            valueInput.addEventListener('input', updateFilter);
-            updateOperatorChange();
-        }
-        
-        // Disable value input for operators that don't need it
-        function updateOperatorChange() {
-            const needsValue = !['is_empty', 'is_not_empty'].includes(operatorSelect.value);
+        // Disable value input for "is empty" and "is not empty"
+        operatorSelect.addEventListener('change', () => {
+            const needsValue = !['is empty', 'is not empty'].includes(operatorSelect.value);
             valueInput.disabled = !needsValue;
             valueInput.style.background = needsValue ? 'white' : '#f5f5f5';
             if (!needsValue) valueInput.value = '';
-            updateFilter();
-        }
-        
-        fieldSelect.addEventListener('change', () => {
-            updateFieldType();
-            updateFilter();
         });
-        
-        operatorSelect.addEventListener('change', updateOperatorChange);
         
         // Remove button
         const removeBtn = document.createElement('button');
@@ -2312,12 +2190,10 @@ export function showFilterModal(host, fields, tableData, onApply) {
         
         // Store filter data
         const updateFilter = () => {
-            const selectedOption = fieldSelect.options[fieldSelect.selectedIndex];
             const filterIndex = activeFilters.findIndex(f => f.id === filterId);
             const filterData = {
                 id: filterId,
                 field: fieldSelect.value,
-                fieldType: selectedOption.dataset.type,
                 operator: operatorSelect.value,
                 value: valueInput.value
             };
@@ -2330,20 +2206,22 @@ export function showFilterModal(host, fields, tableData, onApply) {
             updatePreview();
         };
         
+        fieldSelect.addEventListener('change', updateFilter);
+        operatorSelect.addEventListener('change', updateFilter);
         valueInput.addEventListener('input', updateFilter);
         
         filterRow.appendChild(fieldSelect);
         filterRow.appendChild(operatorSelect);
-        filterRow.appendChild(valueContainer);
+        filterRow.appendChild(valueInput);
         filterRow.appendChild(removeBtn);
         
-        // Initialize
-        updateFieldType();
+        // Initialize filter data
+        updateFilter();
         
         return filterRow;
     }
     
-    // Preview section with record count and table
+    // Preview section
     const previewSection = document.createElement('div');
     previewSection.style.cssText = `
         padding: 12px;
@@ -2351,109 +2229,13 @@ export function showFilterModal(host, fields, tableData, onApply) {
         border: 1px solid #b3d9ff;
         border-radius: 6px;
         margin-bottom: 16px;
+        font-size: 13px;
+        color: #333;
     `;
     
     const previewText = document.createElement('div');
-    previewText.style.cssText = 'font-size: 13px; color: #333; font-weight: 600; margin-bottom: 8px;';
     previewText.textContent = `All ${tableData.length} records will be loaded`;
     previewSection.appendChild(previewText);
-    
-    // Preview table container
-    const previewTableContainer = document.createElement('div');
-    previewTableContainer.style.cssText = `
-        max-height: 300px;
-        overflow: auto;
-        background: white;
-        border: 1px solid #ddd;
-        border-radius: 4px;
-        display: none;
-    `;
-    previewSection.appendChild(previewTableContainer);
-    
-    // Function to create preview table
-    function createPreviewTable(filteredData) {
-        if (filteredData.length === 0) {
-            previewTableContainer.style.display = 'none';
-            return;
-        }
-        
-        previewTableContainer.style.display = 'block';
-        previewTableContainer.innerHTML = '';
-        
-        const table = document.createElement('table');
-        table.style.cssText = `
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 12px;
-        `;
-        
-        // Header
-        const thead = document.createElement('thead');
-        const headerRow = document.createElement('tr');
-        headerRow.style.cssText = 'background: #f5f5f5; position: sticky; top: 0;';
-        
-        const columnKeys = Object.keys(filteredData[0]).filter(key => !key.startsWith('_'));
-        columnKeys.forEach(key => {
-            const th = document.createElement('th');
-            th.textContent = key.charAt(0).toUpperCase() + key.slice(1).replace(/_/g, ' ');
-            th.style.cssText = `
-                padding: 8px;
-                text-align: left;
-                border-bottom: 2px solid #ddd;
-                font-weight: 600;
-                white-space: nowrap;
-            `;
-            headerRow.appendChild(th);
-        });
-        thead.appendChild(headerRow);
-        table.appendChild(thead);
-        
-        // Body - show first 50 records
-        const tbody = document.createElement('tbody');
-        const displayData = filteredData.slice(0, 50);
-        
-        displayData.forEach((row, idx) => {
-            const tr = document.createElement('tr');
-            tr.style.cssText = `
-                background: ${idx % 2 === 0 ? 'white' : '#fafafa'};
-            `;
-            
-            columnKeys.forEach(key => {
-                const td = document.createElement('td');
-                td.textContent = row[key] || '';
-                td.style.cssText = `
-                    padding: 8px;
-                    border-bottom: 1px solid #eee;
-                    max-width: 200px;
-                    overflow: hidden;
-                    text-overflow: ellipsis;
-                    white-space: nowrap;
-                `;
-                tr.appendChild(td);
-            });
-            
-            tbody.appendChild(tr);
-        });
-        table.appendChild(tbody);
-        
-        // Show message if more records exist
-        if (filteredData.length > 50) {
-            const moreMsg = document.createElement('div');
-            moreMsg.textContent = `Showing first 50 of ${filteredData.length} records`;
-            moreMsg.style.cssText = `
-                padding: 8px;
-                text-align: center;
-                color: #666;
-                font-size: 11px;
-                background: #f9f9f9;
-                border-top: 1px solid #ddd;
-            `;
-            previewTableContainer.appendChild(table);
-            previewTableContainer.appendChild(moreMsg);
-        } else {
-            previewTableContainer.appendChild(table);
-        }
-    }
     
     // Function to update preview
     function updatePreview() {
@@ -2464,17 +2246,14 @@ export function showFilterModal(host, fields, tableData, onApply) {
             previewText.textContent = `All ${tableData.length} records will be loaded`;
             previewSection.style.background = '#f0f7ff';
             previewSection.style.borderColor = '#b3d9ff';
-            previewTableContainer.style.display = 'none';
         } else {
             previewText.textContent = `${filteredData.length} of ${tableData.length} records match (${filterCount} filter${filterCount > 1 ? 's' : ''} applied)`;
             if (filteredData.length === 0) {
                 previewSection.style.background = '#fff0f0';
                 previewSection.style.borderColor = '#ffb3b3';
-                previewTableContainer.style.display = 'none';
             } else {
                 previewSection.style.background = '#f0fff0';
                 previewSection.style.borderColor = '#b3ffb3';
-                createPreviewTable(filteredData);
             }
         }
     }
@@ -2505,16 +2284,12 @@ export function showFilterModal(host, fields, tableData, onApply) {
     addFilterBtn.onclick = () => {
         const filterRow = createFilterRow();
         filtersContainer.appendChild(filterRow);
+        updatePreview();
     };
-    
-    // Assemble scroll content
-    scrollContainer.appendChild(filtersContainer);
-    scrollContainer.appendChild(addFilterBtn);
-    scrollContainer.appendChild(previewSection);
     
     // Action buttons
     const buttonContainer = document.createElement('div');
-    buttonContainer.style.cssText = 'display: flex; gap: 8px; margin-top: auto;';
+    buttonContainer.style.cssText = 'display: flex; gap: 8px; margin-top: 20px;';
     
     const applyBtn = document.createElement('button');
     applyBtn.textContent = 'Load Data';
@@ -2550,8 +2325,12 @@ export function showFilterModal(host, fields, tableData, onApply) {
         font-weight: 600;
         transition: all 0.2s;
     `;
-    cancelBtn.onmouseover = () => cancelBtn.style.background = '#f5f5f5';
-    cancelBtn.onmouseout = () => cancelBtn.style.background = 'white';
+    cancelBtn.onmouseover = () => {
+        cancelBtn.style.background = '#f5f5f5';
+    };
+    cancelBtn.onmouseout = () => {
+        cancelBtn.style.background = 'white';
+    };
     cancelBtn.onclick = () => document.body.removeChild(overlay);
     
     const clearBtn = document.createElement('button');
@@ -2587,7 +2366,9 @@ export function showFilterModal(host, fields, tableData, onApply) {
     // Assemble modal
     modal.appendChild(title);
     modal.appendChild(subtitle);
-    modal.appendChild(scrollContainer);
+    modal.appendChild(previewSection);
+    modal.appendChild(filtersContainer);
+    modal.appendChild(addFilterBtn);
     modal.appendChild(buttonContainer);
     overlay.appendChild(modal);
     document.body.appendChild(overlay);
@@ -2600,7 +2381,7 @@ export function showFilterModal(host, fields, tableData, onApply) {
     };
 }
 
-// Enhanced apply filters function with type support
+// Apply filters function (must match the one in main code)
 export function applyFilters(data, filters) {
     if (!filters || filters.length === 0) {
         return data;
@@ -2608,73 +2389,34 @@ export function applyFilters(data, filters) {
 
     return data.filter(row => {
         return filters.every(filter => {
-            const rawValue = row[filter.field];
-            const fieldType = filter.fieldType;
-            
-            // Handle empty checks first
-            if (filter.operator === 'is_empty') {
-                return rawValue === null || rawValue === undefined || rawValue === '';
-            }
-            if (filter.operator === 'is_not_empty') {
-                return rawValue !== null && rawValue !== undefined && rawValue !== '';
-            }
-            
-            // Type-specific filtering
-            if (fieldType === 'number') {
-                const value = parseFloat(rawValue);
-                const filterValue = parseFloat(filter.value);
-                
-                if (isNaN(value) || isNaN(filterValue)) return false;
-                
-                switch (filter.operator) {
-                    case 'equals': return value === filterValue;
-                    case 'not_equals': return value !== filterValue;
-                    case 'greater_than': return value > filterValue;
-                    case 'less_than': return value < filterValue;
-                    case 'greater_or_equal': return value >= filterValue;
-                    case 'less_or_equal': return value <= filterValue;
-                    default: return true;
-                }
-            } else if (fieldType === 'date') {
-                const value = new Date(rawValue);
-                const filterValue = new Date(filter.value);
-                
-                if (isNaN(value.getTime()) || isNaN(filterValue.getTime())) return false;
-                
-                // Compare dates without time
-                const valueDate = new Date(value.getFullYear(), value.getMonth(), value.getDate());
-                const filterDate = new Date(filterValue.getFullYear(), filterValue.getMonth(), filterValue.getDate());
-                
-                switch (filter.operator) {
-                    case 'is': return valueDate.getTime() === filterDate.getTime();
-                    case 'is_not': return valueDate.getTime() !== filterDate.getTime();
-                    case 'is_before': return valueDate < filterDate;
-                    case 'is_after': return valueDate > filterDate;
-                    case 'is_on_or_before': return valueDate <= filterDate;
-                    case 'is_on_or_after': return valueDate >= filterDate;
-                    default: return true;
-                }
-            } else { // text
-                const value = String(rawValue || '').toLowerCase();
-                const filterValue = String(filter.value || '').toLowerCase();
+            const value = String(row[filter.field] || '').toLowerCase();
+            const filterValue = String(filter.value || '').toLowerCase();
 
-                switch (filter.operator) {
-                    case 'is': return value === filterValue;
-                    case 'is_not': return value !== filterValue;
-                    case 'contains': return value.includes(filterValue);
-                    case 'does_not_contain': return !value.includes(filterValue);
-                    case 'starts_with': return value.startsWith(filterValue);
-                    case 'ends_with': return value.endsWith(filterValue);
-                    default: return true;
-                }
+            switch (filter.operator) {
+                case 'is':
+                    return value === filterValue;
+                case 'is not':
+                    return value !== filterValue;
+                case 'contains':
+                    return value.includes(filterValue);
+                case 'does not contain':
+                    return !value.includes(filterValue);
+                case 'starts with':
+                    return value.startsWith(filterValue);
+                case 'ends with':
+                    return value.endsWith(filterValue);
+                case 'is empty':
+                    return value === '';
+                case 'is not empty':
+                    return value !== '';
+                default:
+                    return true;
             }
         });
     });
 }
 
-
-
-export async function insertDatabaseWithData(rootComponent, tableData, selectedApp, selectedTable, filters, userId, jwtToken, fields = []) {
+export async function insertDatabaseWithData(rootComponent, tableData, selectedApp, selectedTable, filters, userId, jwtToken) {
     rootComponent.std.command
         .chain()
         .getSelectedModels()
@@ -2695,21 +2437,26 @@ export async function insertDatabaseWithData(rootComponent, tableData, selectedA
             if (!dbBlock) return;
 
             const dbModel = dbBlock.model;
+            const dbService = rootComponent.std.getService("affine:database");
 
-            // Enhanced metadata with filter conditions
+            if (!dbService) {
+                console.error("Missing service affine:database");
+                return;
+            }
+
+            // Store SuperApp metadata in the database block
             const superAppMetadata = {
                 source: 'superapp_table',
                 userId: userId,
                 appName: selectedApp.app_name,
                 tableName: selectedTable.name,
-                filters: filters || [],
-                // fields: fields,
+                filters: filters,
                 lastFetched: new Date().toISOString(),
-                version: '2.0'
+                version: '1.0'
             };
 
             // Wait for database block to be fully initialized
-            await new Promise((resolve) => setTimeout(resolve, 100));
+            await new Promise((resolve) => setTimeout(resolve, 500));
 
             const columnKeys = Object.keys(tableData[0]).filter(key => !key.startsWith('_'));
             const columnIdMap = {};
@@ -2720,7 +2467,7 @@ export async function insertDatabaseWithData(rootComponent, tableData, selectedA
                 doc.deleteBlock(childId);
             }
             
-            await new Promise((resolve) => setTimeout(resolve, 100));
+            await new Promise((resolve) => setTimeout(resolve, 200));
 
             // Find title column
             let titleColumnId = null;
@@ -2760,7 +2507,6 @@ export async function insertDatabaseWithData(rootComponent, tableData, selectedA
                 // Create all new columns at once
                 const viewColumns = [];
                 
-                // Add regular data columns
                 for (let i = 1; i < columnKeys.length; i++) {
                     const key = columnKeys[i];
                     const columnName = key.charAt(0).toUpperCase() + key.slice(1).replace(/_/g, ' ');
@@ -2783,19 +2529,6 @@ export async function insertDatabaseWithData(rootComponent, tableData, selectedA
                     console.log(`Created column: ${columnName} (${colId})`);
                 }
                 
-                // ✅ CREATE HIDDEN METADATA COLUMN
-                const metadataColumnId = '__superapp_metadata__';
-                dbModel.columns.push({
-                    type: 'rich-text',
-                    name: '__SuperApp_Metadata__',
-                    id: metadataColumnId,
-                    data: {
-                        superAppMetadata: superAppMetadata
-                    }
-                });
-                
-                console.log("✅ Created metadata column with data:", superAppMetadata);
-                
                 // Update view
                 if (dbModel.views && dbModel.views.length > 0) {
                     const tableView = dbModel.views[0];
@@ -2806,22 +2539,22 @@ export async function insertDatabaseWithData(rootComponent, tableData, selectedA
                     tableView.header.titleColumn = titleColumnId;
                     tableView.header.iconColumn = "type";
                     
-                    // Add regular columns to view (visible)
-                    tableView.columns = [...viewColumns];
-                    
-                    // Optionally hide metadata column from view
-                    // tableView.columns.push({
-                    //     id: metadataColumnId,
-                    //     hide: true
-                    // });
+                    tableView.columns = viewColumns;
                 }
                 
-                console.log(`Created ${viewColumns.length} data columns + 1 metadata column`);
+                // Store metadata in a custom property
+                if (!dbModel.meta) {
+                    dbModel.meta = {};
+                }
+                dbModel.meta.superAppMetadata = superAppMetadata;
+                
+                console.log("Created", viewColumns.length, "columns in view");
+                console.log("Stored metadata:", superAppMetadata);
             });
 
             await new Promise((resolve) => setTimeout(resolve, 500));
 
-            // INSERT DATA ROWS
+            // INSERT DATA ROWS WITH PROPER TRANSACTION MANAGEMENT
             console.log("Inserting", tableData.length, "rows...");
             
             const rowIds = [];
@@ -2842,10 +2575,9 @@ export async function insertDatabaseWithData(rootComponent, tableData, selectedA
                 await new Promise((resolve) => setTimeout(resolve, 50));
             }
 
-            await new Promise((resolve) => setTimeout(resolve, 100));
+            await new Promise((resolve) => setTimeout(resolve, 300));
 
-            // POPULATE ALL CELLS IN A SINGLE TRANSACTION
-            console.log("Populating cells...");
+            // Populate all cells in a single transaction
             doc.transact(() => {
                 if (!dbModel.cells) {
                     dbModel.cells = {};
@@ -2874,7 +2606,7 @@ export async function insertDatabaseWithData(rootComponent, tableData, selectedA
                 }
             });
 
-            // UPDATE DB TITLE WITH FILTER INDICATION
+            // Update DB title with filter indication
             doc.transact(() => {
                 if (dbModel.title) {
                     dbModel.title.clear();
@@ -2886,211 +2618,19 @@ export async function insertDatabaseWithData(rootComponent, tableData, selectedA
                 }
             });
 
-            await new Promise((resolve) => setTimeout(resolve, 200));
+            await new Promise((resolve) => setTimeout(resolve, 500));
 
             console.log("=== COMPLETE ===");
             console.log("Final columns:", dbModel.columns.length);
             console.log("Total rows created:", rowIds.length);
-            console.log("Final metadata:", getSuperAppMetadata(dbModel));
             
             const filterMsg = filters && filters.length > 0 ? ` with ${filters.length} filter(s)` : '';
             toast(rootComponent.host, `Loaded ${tableData.length} rows with ${dbModel.columns.length} columns${filterMsg}!`);
             
-            // VERIFY METADATA IS STORED AND WILL BE EXPORTED
-            setTimeout(() => {
-                const finalMetadata = getSuperAppMetadata(dbModel);
-                if (finalMetadata) {
-                    console.log("✅ Metadata successfully stored and will persist in exports:", finalMetadata);
-                } else {
-                    console.error("❌ Metadata not stored properly");
-                }
-            }, 500);
+            // Add refresh button context menu or similar
+            addRefreshAction(rootComponent, insertedDatabaseBlockId, userId, jwtToken);
         })
         .run();
-}
-
-// ✅ UPDATED HELPER FUNCTIONS
-function storeSuperAppMetadata(dbModel, metadata) {
-    const metadataColumnId = '__superapp_metadata__';
-    let columnIndex = dbModel.columns.findIndex(col => col.id === metadataColumnId);
-    
-    if (columnIndex === -1) {
-        // Add hidden metadata column
-        dbModel.columns.push({
-            type: 'rich-text',
-            name: '__SuperApp_Metadata__',
-            id: metadataColumnId,
-            data: {
-                superAppMetadata: metadata
-            }
-        });
-        console.log("✅ Created metadata column");
-    } else {
-        // Update existing column's data
-        dbModel.columns[columnIndex] = {
-            ...dbModel.columns[columnIndex],
-            data: {
-                superAppMetadata: metadata
-            }
-        };
-        console.log("✅ Updated metadata column");
-    }
-    
-    console.log("✅ Stored SuperApp metadata:", metadata);
-}
-
-function getSuperAppMetadata(dbModel) {
-    const metadataColumn = dbModel.columns.find(col => col.id === '__superapp_metadata__');
-    const metadata = metadataColumn?.data?.superAppMetadata;
-    console.log("📖 Retrieved metadata:", metadata);
-    return metadata;
-}
-
-// ✅ FUNCTION TO GET ALL DATABASE BLOCKS WITH METADATA
-export function getAllDatabasesWithMetadata(doc) {
-    const databases = [];
-    
-    const findDatabaseBlocks = (blockId) => {
-        const block = doc.getBlock(blockId);
-        if (!block) return;
-        
-        if (block.flavour === 'affine:database') {
-            const metadata = getSuperAppMetadata(block.model);
-            if (metadata) {
-                databases.push({
-                    id: block.id,
-                    title: block.model.title?.toString() || 'Untitled',
-                    metadata: metadata,
-                    model: block.model
-                });
-            }
-        }
-        
-        // Recursively check children
-        if (block.model.children) {
-            block.model.children.forEach(childId => findDatabaseBlocks(childId));
-        }
-    };
-    
-    if (doc.root) {
-        findDatabaseBlocks(doc.root.id);
-    }
-    
-    return databases;
-}
-
-// ✅ FUNCTION TO UPDATE EXISTING DATABASE WITH NEW DATA
-export async function updateDatabaseWithNewData(doc, databaseBlockId, newTableData, newFilters) {
-    const dbBlock = doc.getBlock(databaseBlockId);
-    if (!dbBlock) {
-        console.error("Database block not found");
-        return false;
-    }
-    
-    const dbModel = dbBlock.model;
-    
-    // Get existing metadata
-    const existingMetadata = getSuperAppMetadata(dbModel);
-    if (!existingMetadata) {
-        console.error("No metadata found for this database");
-        return false;
-    }
-    
-    // Update metadata with new filters and timestamp
-    const updatedMetadata = {
-        ...existingMetadata,
-        filters: newFilters || existingMetadata.filters,
-        lastFetched: new Date().toISOString()
-    };
-    
-    // Clear existing rows
-    const existingChildren = dbModel.children ? [...dbModel.children] : [];
-    for (const childId of existingChildren) {
-        doc.deleteBlock(childId);
-    }
-    
-    await new Promise(resolve => setTimeout(resolve, 100));
-    
-    // Get column mapping
-    const columnKeys = Object.keys(newTableData[0]).filter(key => !key.startsWith('_'));
-    const columnIdMap = {};
-    
-    // Map column keys to existing column IDs
-    for (const key of columnKeys) {
-        const columnName = key.charAt(0).toUpperCase() + key.slice(1).replace(/_/g, ' ');
-        const existingCol = dbModel.columns.find(col => 
-            col.name.toLowerCase() === columnName.toLowerCase()
-        );
-        if (existingCol) {
-            columnIdMap[key] = existingCol.id;
-        }
-    }
-    
-    // Insert new rows
-    const rowIds = [];
-    const firstKey = columnKeys[0];
-    
-    for (let rowIndex = 0; rowIndex < newTableData.length; rowIndex++) {
-        const row = newTableData[rowIndex];
-        const titleValue = row[firstKey] || '';
-
-        const rowId = doc.addBlock(
-            'affine:paragraph',
-            { 
-                type: 'text',
-                text: new doc.Text(String(titleValue))
-            },
-            databaseBlockId
-        );
-        
-        rowIds.push(rowId);
-        await new Promise(resolve => setTimeout(resolve, 50));
-    }
-    
-    await new Promise(resolve => setTimeout(resolve, 100));
-    
-    // Populate cells
-    doc.transact(() => {
-        dbModel.cells = {};
-        
-        for (let rowIndex = 0; rowIndex < newTableData.length; rowIndex++) {
-            const rowId = rowIds[rowIndex];
-            const row = newTableData[rowIndex];
-            
-            dbModel.cells[rowId] = {};
-
-            for (let i = 1; i < columnKeys.length; i++) {
-                const key = columnKeys[i];
-                const value = row[key];
-                const columnId = columnIdMap[key];
-
-                if (columnId && value !== null && value !== undefined && value !== '') {
-                    dbModel.cells[rowId][columnId] = {
-                        columnId: columnId,
-                        value: new doc.Text(String(value))
-                    };
-                }
-            }
-        }
-        
-        // Update metadata
-        storeSuperAppMetadata(dbModel, updatedMetadata);
-        
-        // Update title
-        if (dbModel.title) {
-            dbModel.title.clear();
-            const filterSuffix = updatedMetadata.filters && updatedMetadata.filters.length > 0 
-                ? ` (${updatedMetadata.filters.length} filter${updatedMetadata.filters.length > 1 ? 's' : ''})` 
-                : '';
-            dbModel.title.insert(
-                `${updatedMetadata.appName} - ${updatedMetadata.tableName}${filterSuffix}`,
-                0
-            );
-        }
-    });
-    
-    console.log(`✅ Updated database with ${newTableData.length} rows`);
-    return true;
 }
 
 export function addRefreshAction(rootComponent, blockId, userId, jwtToken) {
@@ -3142,674 +2682,4 @@ export async function refreshSuperAppTable(rootComponent, blockId, userId, jwtTo
         console.error("Error refreshing table:", err);
         toast(rootComponent.host, "Failed to refresh table");
     }
-}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-export function showChartFieldSelector(rootComponent, model, chartType, data, fields, selectedApp, selectedTable, filters) {
-    const overlay = document.createElement('div');
-    overlay.style.cssText = `
-        position: fixed;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background: rgba(0, 0, 0, 0.5);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        z-index: 10000;
-    `;
-
-    const modal = document.createElement('div');
-    modal.style.cssText = `
-        background: white;
-        border-radius: 8px;
-        padding: 24px;
-        width: 600px;
-        max-height: 80vh;
-        overflow-y: auto;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-    `;
-
-    const title = document.createElement('h3');
-    title.textContent = `Configure ${chartType.charAt(0).toUpperCase() + chartType.slice(1)} Chart`;
-    title.style.cssText = 'margin: 0 0 16px 0; font-size: 18px; color: #333;';
-
-    // Chart Title Input
-    const titleInput = document.createElement('input');
-    titleInput.placeholder = 'Chart Title';
-    titleInput.style.cssText = `
-        width: 100%;
-        padding: 10px;
-        margin-bottom: 16px;
-        border: 1px solid #ddd;
-        border-radius: 4px;
-        font-size: 14px;
-    `;
-
-    // Field selection based on chart type
-    const fieldSelectionContainer = document.createElement('div');
-    fieldSelectionContainer.style.cssText = 'display: flex; flex-direction: column; gap: 16px; margin-bottom: 20px;';
-
-    const getCompatibleFields = (chartType, fields) => {
-        const compatibleFields = [];
-        
-        fields.forEach(field => {
-            let isCompatible = false;
-            
-            switch (chartType) {
-                case 'bar':
-                case 'line':
-                    // For bar/line charts: category (text/date) + value (number)
-                    if (field.type === 'number') {
-                        isCompatible = { type: 'value', label: `Value: ${field.label || field.name}` };
-                    } else if (field.type === 'text' || field.type === 'date') {
-                        isCompatible = { type: 'category', label: `Category: ${field.label || field.name}` };
-                    }
-                    break;
-                    
-                case 'pie':
-                    // For pie charts: label (text) + value (number)
-                    if (field.type === 'number') {
-                        isCompatible = { type: 'value', label: `Value: ${field.label || field.name}` };
-                    } else if (field.type === 'text') {
-                        isCompatible = { type: 'label', label: `Label: ${field.label || field.name}` };
-                    }
-                    break;
-            }
-            
-            if (isCompatible) {
-                compatibleFields.push({
-                    ...field,
-                    role: isCompatible.type,
-                    displayLabel: isCompatible.label
-                });
-            }
-        });
-        
-        return compatibleFields;
-    };
-
-    const compatibleFields = getCompatibleFields(chartType, fields);
-    
-    // Declare these variables at the function scope
-    let categorySelect = null;
-    let valueSelect = null;
-    let currentChart = null;
-    let previewCanvas = null;
-
-    if (compatibleFields.length === 0) {
-        const noFieldsMsg = document.createElement('p');
-        noFieldsMsg.textContent = 'No compatible fields found for this chart type. Bar/Line charts need text/date and number fields. Pie charts need text and number fields.';
-        noFieldsMsg.style.cssText = 'color: #666; font-size: 14px; text-align: center; padding: 20px;';
-        fieldSelectionContainer.appendChild(noFieldsMsg);
-    } else {
-        // Category/Label field selection
-        const categoryFields = compatibleFields.filter(f => f.role === 'category' || f.role === 'label');
-        if (categoryFields.length > 0) {
-            const categoryLabel = document.createElement('label');
-            categoryLabel.textContent = chartType === 'pie' ? 'Select Label Field:' : 'Select Category Field:';
-            categoryLabel.style.cssText = 'font-weight: 600; margin-bottom: 8px;';
-            
-            categorySelect = document.createElement('select');
-            categorySelect.style.cssText = 'width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px;';
-            
-            categoryFields.forEach(field => {
-                const option = document.createElement('option');
-                option.value = field.name;
-                option.textContent = field.displayLabel;
-                categorySelect.appendChild(option);
-            });
-            
-            fieldSelectionContainer.appendChild(categoryLabel);
-            fieldSelectionContainer.appendChild(categorySelect);
-        }
-
-        // Value field selection
-        const valueFields = compatibleFields.filter(f => f.role === 'value');
-        if (valueFields.length > 0) {
-            const valueLabel = document.createElement('label');
-            valueLabel.textContent = 'Select Value Field:';
-            valueLabel.style.cssText = 'font-weight: 600; margin-bottom: 8px;';
-            
-            valueSelect = document.createElement('select');
-            valueSelect.style.cssText = 'width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px;';
-            
-            valueFields.forEach(field => {
-                const option = document.createElement('option');
-                option.value = field.name;
-                option.textContent = field.displayLabel;
-                valueSelect.appendChild(option);
-            });
-            
-            fieldSelectionContainer.appendChild(valueLabel);
-            fieldSelectionContainer.appendChild(valueSelect);
-        }
-
-        // Preview section
-        const previewSection = document.createElement('div');
-        previewSection.style.cssText = 'margin: 20px 0; padding: 16px; background: #f9f9f9; border-radius: 6px;';
-        
-        const previewTitle = document.createElement('h4');
-        previewTitle.textContent = 'Preview';
-        previewTitle.style.cssText = 'margin: 0 0 12px 0; font-size: 14px;';
-        
-        previewCanvas = document.createElement('canvas');
-        previewCanvas.style.cssText = 'max-width: 100%; border: 1px solid #eee; border-radius: 4px;';
-        
-        previewSection.appendChild(previewTitle);
-        previewSection.appendChild(previewCanvas);
-
-        const updatePreview = () => {
-            if (!categorySelect || !valueSelect) return;
-            
-            const categoryField = categorySelect.value;
-            const valueField = valueSelect.value;
-            
-            if (!categoryField || !valueField) return;
-
-            // Process data for chart
-            const chartData = processDataForChart(data, categoryField, valueField, chartType);
-            
-            if (currentChart) currentChart.destroy();
-            
-            currentChart = createChartPreview(
-                previewCanvas, 
-                chartType, 
-                titleInput.value || 'Chart', 
-                chartData.labels, 
-                chartData.values
-            );
-        };
-
-        // Add event listeners for live preview
-        if (categorySelect) categorySelect.addEventListener('change', updatePreview);
-        if (valueSelect) valueSelect.addEventListener('change', updatePreview);
-        titleInput.addEventListener('input', updatePreview);
-
-        // Initial preview
-        setTimeout(updatePreview, 100);
-        
-        modal.appendChild(previewSection);
-    }
-
-    // Buttons
-    const buttonContainer = document.createElement('div');
-    buttonContainer.style.cssText = 'display: flex; gap: 8px; justify-content: flex-end; margin-top: 20px;';
-
-    const insertBtn = document.createElement('button');
-    insertBtn.textContent = 'Insert Chart';
-    insertBtn.style.cssText = `
-        padding: 10px 20px;
-        border: none;
-        background: #667eea;
-        color: white;
-        border-radius: 4px;
-        cursor: pointer;
-        font-weight: 500;
-    `;
-
-    const cancelBtn = document.createElement('button');
-    cancelBtn.textContent = 'Cancel';
-    cancelBtn.style.cssText = `
-        padding: 10px 20px;
-        border: 1px solid #ccc;
-        background: white;
-        border-radius: 4px;
-        cursor: pointer;
-    `;
-
-    insertBtn.onclick = async () => {
-        if (!categorySelect || !valueSelect) {
-            toast(rootComponent.host, 'Please select both fields');
-            return;
-        }
-
-        const categoryField = categorySelect.value;
-        const valueField = valueSelect.value;
-        
-        if (!categoryField || !valueField) {
-            toast(rootComponent.host, 'Please select both fields');
-            return;
-        }
-
-        const chartData = processDataForChart(data, categoryField, valueField, chartType);
-        
-        // Create final chart and insert as image with metadata
-        await createAndInsertChartWithMetadata(
-            rootComponent,
-            model,
-            chartType,
-            chartData.labels,
-            chartData.values,
-            titleInput.value,
-            selectedApp,
-            selectedTable,
-            filters,
-            { categoryField, valueField }
-        );
-
-        if (currentChart) currentChart.destroy();
-        document.body.removeChild(overlay);
-    };
-
-    cancelBtn.onclick = () => {
-        if (currentChart) currentChart.destroy();
-        document.body.removeChild(overlay);
-    };
-
-    buttonContainer.appendChild(cancelBtn);
-    buttonContainer.appendChild(insertBtn);
-
-    modal.appendChild(title);
-    modal.appendChild(titleInput);
-    modal.appendChild(fieldSelectionContainer);
-    modal.appendChild(buttonContainer);
-    overlay.appendChild(modal);
-    document.body.appendChild(overlay);
-
-    overlay.onclick = (e) => {
-        if (e.target === overlay) {
-            if (currentChart) currentChart.destroy();
-            document.body.removeChild(overlay);
-        }
-    };
-}
-
-export async function showSuperAppChartCreator(rootComponent, model, chartType) {
-    try {
-        const userId = userInfo?.userid || userInfo?.id || 1;
-
-        toast(rootComponent.host, 'Loading apps...');
-
-        const apps = await fetchSuperApps(userId, jwtToken);
-        if (apps.length === 0) {
-            toast(rootComponent.host, 'No apps found');
-            return;
-        }
-
-        showAppSelectorModal(rootComponent.host, apps, async (selectedApp) => {
-            toast(rootComponent.host, `Loading tables for ${selectedApp.app_name}...`);
-
-            const tables = await fetchAppTables(userId, selectedApp.app_name, jwtToken);
-            if (tables.length === 0) {
-                toast(rootComponent.host, 'No tables found in this app');
-                return;
-            }
-
-            showTableSelectorModal(rootComponent.host, tables, async (selectedTable) => {
-                toast(rootComponent.host, `Loading data from ${selectedTable.name}...`);
-
-                const response = await fetchTableData(
-                    userId,
-                    selectedApp.app_name,
-                    selectedTable.name,
-                    jwtToken
-                );
-
-                const rawTableData = response?.data?.data?.data || response?.data?.data || [];
-                const fields = response?.data?.fields || [];
-
-                if (!rawTableData || rawTableData.length === 0) {
-                    toast(rootComponent.host, 'No data found in this table');
-                    return;
-                }
-
-                // Show filter modal first
-                showFilterModal(rootComponent.host, fields, rawTableData, async (filters) => {
-                    const filteredData = applyFilters(rawTableData, filters);
-
-                    if (filteredData.length === 0) {
-                        toast(rootComponent.host, 'No data matches the applied filters');
-                        return;
-                    }
-
-                    // Then show chart configuration with field selection
-                    showChartFieldSelector(
-                        rootComponent, 
-                        model, 
-                        chartType, 
-                        filteredData, 
-                        fields,
-                        selectedApp,
-                        selectedTable,
-                        filters
-                    );
-                });
-            });
-        });
-
-    } catch (err) {
-        console.error("Error creating SuperApp chart:", err);
-        toast(rootComponent.host, "Failed to create chart");
-    }
-}
-
-
-export function processDataForChart(data, categoryField, valueField, chartType) {
-    if (chartType === 'pie') {
-        // Aggregate data for pie chart
-        const aggregated = {};
-        data.forEach(row => {
-            const category = row[categoryField];
-            const value = parseFloat(row[valueField]) || 0;
-            if (category) {
-                aggregated[category] = (aggregated[category] || 0) + value;
-            }
-        });
-        
-        return {
-            labels: Object.keys(aggregated),
-            values: Object.values(aggregated)
-        };
-    } else {
-        // For bar/line charts, use raw data or aggregate if needed
-        const labels = [];
-        const values = [];
-        
-        data.forEach(row => {
-            const label = row[categoryField];
-            const value = parseFloat(row[valueField]);
-            
-            if (label && !isNaN(value)) {
-                labels.push(label);
-                values.push(value);
-            }
-        });
-        
-        return { labels, values };
-    }
-}
-
-
-export async function createAndInsertChartWithMetadata(
-    rootComponent,
-    model,
-    chartType,
-    labels,
-    values,
-    chartTitle,
-    selectedApp,
-    selectedTable,
-    filters,
-    fieldMapping
-) {
-    try {
-        console.log('Using existing preview canvas...');
-        
-        const previewCanvas = document.querySelector('canvas');
-        if (!previewCanvas) {
-            throw new Error('No canvas found in DOM');
-        }
-        
-        console.log('Found canvas:', previewCanvas);
-        
-        // Prepare metadata to store
-        const chartMetadata = {
-            chartType: chartType,
-            appName: selectedApp.app_name,
-            appId: selectedApp.id,
-            tableName: selectedTable.name,
-            tableId: selectedTable.id,
-            filters: filters,
-            fieldMapping: fieldMapping,
-            createdAt: new Date().toISOString(),
-            title: chartTitle
-        };
-        
-        // Insert chart and get the image block ID
-        const imageBlockId = await insertChartAsImageWithMetadata(
-            rootComponent, 
-            model, 
-            previewCanvas, 
-            chartTitle,
-            chartMetadata
-        );
-        
-        console.log('✅ Chart inserted with metadata:', chartMetadata);
-        
-    } catch (error) {
-        console.error('Error creating chart:', error);
-        toast(rootComponent.host, 'Failed to create chart: ' + error.message);
-    }
-}
-
-// Make sure we're using the exact same createChartPreview function
-export function createChartPreview2(canvas, chartType, title, labels, data) {
-    const ctx = canvas.getContext('2d');
-    
-    // Clear any existing chart
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    const colors = chartType === "pie"
-        ? generateDistinctColors(labels.length)
-        : 'rgba(102, 126, 234, 0.6)';
-
-    const config = {
-        type: chartType,
-        data: {
-            labels: labels,
-            datasets: [{
-                label: title || 'Dataset',
-                data: data,
-                backgroundColor: colors,
-                borderColor: chartType === 'pie' ? '#fff' : 'rgba(102, 126, 234, 1)',
-                borderWidth: 2
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: true,
-            plugins: {
-                title: {
-                    display: !!title,
-                    text: title,
-                    font: {
-                        size: 16,
-                        weight: 'bold'
-                    }
-                },
-                legend: {
-                    display: chartType === 'pie',
-                    position: 'bottom'
-                }
-            },
-            scales: chartType !== 'pie' ? {
-                y: {
-                    beginAtZero: true
-                }
-            } : {}
-        }
-    };
-
-    return new Chart(ctx, config);
-}
-
-// Use the exact same insertChartAsImage function from working version
-export async function insertChartAsImage2(rootComponent, model, canvas, chartTitle) {
-    try {
-        // Convert canvas to blob
-        const blob = await new Promise(resolve => {
-            canvas.toBlob(resolve, 'image/png');
-        });
-
-        // Store in BlockSuite blob storage (same as cover image)
-        const doc = rootComponent.doc;
-        const storage = doc.collection.blobSync;
-        const blobId = await storage.set(blob);
-
-        // Insert as image block
-        const parentModel = doc.getParent(model);
-        if (!parentModel) return;
-
-        const index = parentModel.children.indexOf(model) + 1;
-        
-        const imageId = doc.addBlock(
-            'affine:image',
-            {
-                sourceId: blobId,
-                caption: chartTitle || 'Chart'
-            },
-            parentModel,
-            index
-        );
-
-        tryRemoveEmptyLine(model);
-
-        rootComponent.host.selection.setGroup('note', [
-            rootComponent.host.selection.create('block', {
-                blockId: imageId,
-            }),
-        ]);
-
-        toast(rootComponent.host, 'Chart inserted successfully');
-    } catch (error) {
-        console.error('Error inserting chart:', error);
-        toast(rootComponent.host, 'Failed to insert chart');
-    }
-}
-export async function insertChartAsImageWithMetadata(rootComponent, model, canvas, chartTitle, metadata) {
-    try {
-        // Convert canvas to blob
-        const blob = await new Promise(resolve => {
-            canvas.toBlob(resolve, 'image/png');
-        });
-
-        // Store in BlockSuite blob storage
-        const doc = rootComponent.doc;
-        const storage = doc.collection.blobSync;
-        const blobId = await storage.set(blob);
-
-        // Insert as image block
-        const parentModel = doc.getParent(model);
-        if (!parentModel) return;
-
-        const index = parentModel.children.indexOf(model) + 1;
-        
-        const imageId = doc.addBlock(
-            'affine:image',
-            {
-                sourceId: blobId,
-                caption: chartTitle || 'Chart',
-                '__superapp_chart_metadata__': JSON.stringify(metadata)
-            },
-            parentModel,
-            index
-        );
-
-        tryRemoveEmptyLine(model);
-
-        rootComponent.host.selection.setGroup('note', [
-            rootComponent.host.selection.create('block', {
-                blockId: imageId,
-            }),
-        ]);
-
-        toast(rootComponent.host, 'Chart inserted successfully');
-        
-        return imageId;
-    } catch (error) {
-        console.error('Error inserting chart:', error);
-        toast(rootComponent.host, 'Failed to insert chart');
-        throw error;
-    }
-}
-
-
-
-// ✅ IMAGE METADATA HELPER FUNCTIONS
-function storeImageMetadata(imageModel, metadata) {
-    // Store metadata in a custom property on the image block
-    const metadataString = JSON.stringify(metadata);
-    
-    // BlockSuite allows custom properties - store it directly on the model
-    if (!imageModel.caption) {
-        imageModel.caption = '';
-    }
-    
-    // Store metadata in a hidden format that won't be visible to users
-    // Using a special prefix that we can parse later
-    imageModel['__superapp_chart_metadata__'] = metadataString;
-    
-    console.log("✅ Stored image chart metadata:", metadata);
-}
-
-function getImageMetadata(imageModel) {
-    try {
-        const metadataString = imageModel['__superapp_chart_metadata__'];
-        if (!metadataString) return null;
-        
-        const metadata = JSON.parse(metadataString);
-        console.log("📖 Retrieved image metadata:", metadata);
-        return metadata;
-    } catch (error) {
-        console.error("Error parsing image metadata:", error);
-        return null;
-    }
-}
-
-// ✅ FUNCTION TO GET ALL CHART IMAGES WITH METADATA
-export function getAllChartsWithMetadata(doc) {
-    const charts = [];
-    
-    const findImageBlocks = (blockId) => {
-        const block = doc.getBlock(blockId);
-        if (!block) return;
-        
-        if (block.flavour === 'affine:image') {
-            const metadata = getImageMetadata(block.model);
-            if (metadata) {
-                charts.push({
-                    id: block.id,
-                    caption: block.model.caption || 'Untitled Chart',
-                    sourceId: block.model.sourceId,
-                    metadata: metadata,
-                    model: block.model
-                });
-            }
-        }
-        
-        // Recursively check children
-        if (block.model.children) {
-            block.model.children.forEach(child => {
-                if (typeof child === 'string') {
-                    findImageBlocks(child);
-                } else if (child.id) {
-                    findImageBlocks(child.id);
-                }
-            });
-        }
-    };
-    
-    if (doc.root) {
-        findImageBlocks(doc.root.id);
-    }
-    
-    return charts;
 }
