@@ -124,6 +124,16 @@ export class AffineSlashMenuWidget extends WidgetComponent {
                 return;
             this._handleInput(inlineEditor, true);
         };
+       this._onBeforeInput = (ctx) => {
+    const event = ctx.get('defaultState').event;
+
+    if (event.inputType === "insertText" && event.data === "/") {
+        const inlineEditor = this._getInlineEditor(event);
+        if (!inlineEditor) return;
+        this._handleInput(inlineEditor, false);
+    }
+};
+
         this._onKeyDown = (ctx) => {
             const eventState = ctx.get('keyboardState');
             const event = eventState.raw;
@@ -149,7 +159,7 @@ export class AffineSlashMenuWidget extends WidgetComponent {
             console.error('Trigger key of slash menu should not be empty string');
             return;
         }
-        // this.handleEvent('beforeInput', this._onBeforeInput);
+        this.handleEvent('beforeInput', this._onBeforeInput);
         this.handleEvent('keyDown', this._onKeyDown);
         this.handleEvent('compositionEnd', this._onCompositionEnd);
     }
