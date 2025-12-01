@@ -124,15 +124,18 @@ export class AffineSlashMenuWidget extends WidgetComponent {
                 return;
             this._handleInput(inlineEditor, true);
         };
-       this._onBeforeInput = (ctx) => {
-    const event = ctx.get('defaultState').event;
-
-    if (event.inputType === "insertText" && event.data === "/") {
-        const inlineEditor = this._getInlineEditor(event);
-        if (!inlineEditor) return;
-        this._handleInput(inlineEditor, false);
-    }
-};
+        this._onBeforeInput = (ctx) => {
+            const event = ctx.get('defaultState').event;
+            
+            if (event.inputType === "insertText" && event.data === "/") {
+                const inlineEditor = this._getInlineEditor(event);
+                if (!inlineEditor) {
+                    console.log('❌ No inline editor found');
+                    return;
+                }
+                this._handleInput(inlineEditor, false);
+            }
+        };
 
         this._onKeyDown = (ctx) => {
             const eventState = ctx.get('keyboardState');
@@ -141,15 +144,44 @@ export class AffineSlashMenuWidget extends WidgetComponent {
             // check event is not composing
             if (key === undefined || // in mac os, the key may be undefined
                 key === 'Process' ||
-                event.isComposing)
+                event.isComposing) {
+                console.log('❌ Skipping - composing or undefined key');
                 return;
-            if (!this.config.triggerKeys.some(triggerKey => triggerKey.includes(key)))
+            }
+            
+            if (!this.config.triggerKeys.some(triggerKey => triggerKey.includes(key))) {
                 return;
+            }
+            
             const inlineEditor = this._getInlineEditor(event);
             if (!inlineEditor)
                 return;
             this._handleInput(inlineEditor, false);
         };
+
+        this._onInput = (ctx) => {
+            const event = ctx.get('defaultState').event;
+            
+            // Only use this for mobile devices as a fallback
+            const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+            if (!isMobile) {
+                return; // Skip this handler for PC - use _onBeforeInput instead
+            }
+            
+            
+            // Additional mobile fallback - check if "/" was just inserted
+            if (event.target && event.target.textContent) {
+                const text = event.target.textContent;
+                // Check if the last character is "/"
+                if (text.endsWith('/')) {
+                    const inlineEditor = this._getInlineEditor(event);
+                    if (inlineEditor) {
+                        this._handleInput(inlineEditor, false);
+                    }
+                }
+            }
+        };
+        
         this.config = AffineSlashMenuWidget.DEFAULT_CONFIG;
     }
     static { this.DEFAULT_CONFIG = defaultSlashMenuConfig; }
@@ -159,9 +191,44 @@ export class AffineSlashMenuWidget extends WidgetComponent {
             console.error('Trigger key of slash menu should not be empty string');
             return;
         }
-        this.handleEvent('beforeInput', this._onBeforeInput);
-        this.handleEvent('keyDown', this._onKeyDown);
-        this.handleEvent('compositionEnd', this._onCompositionEnd);
+        try {
+            this.handleEvent('beforeInput', this._onBeforeInput);
+        } catch (e) {
+            console.warn('Failed to register beforeInput:', e);
+        }
+        
+        try {
+            this.handleEvent('keyDown', this._onKeyDown);
+        } catch (e) {
+            console.warn('Failed to register keyDown:', e);
+        }
+        
+        try {
+            this.handleEvent('compositionEnd', this._onCompositionEnd);
+        } catch (e) {
+            console.warn('Failed to register compositionEnd:', e);
+        }
+        
+        // // ✅ FIX: Register input event with error handling
+        // try {
+        //     this.handleEvent('input', this._onInput);
+        // } catch (e) {
+        //     console.warn('Failed to register input event:', e);
+        // }
+        
+        setTimeout(() => {
+            if (this.host && this.host.renderRoot) {
+                const editor = this.host.renderRoot.querySelector('[contenteditable="true"]');
+                if (editor) {
+                    editor.addEventListener('beforeinput', (e) => {
+                        if (e.inputType === 'insertText' && e.data === '/') {
+                            const ctx = { get: (key) => key === 'defaultState' ? { event: e } : null };
+                            this._onBeforeInput(ctx);
+                        }
+                    }, { capture: true });
+                }
+            }
+        }, 100);
     }
 }
 //# sourceMappingURL=index.js.map
