@@ -1378,6 +1378,7 @@ export async function showChartCreatorNormal(rootComponent, model, chartType) {
             align-items: center;
             justify-content: center;
             z-index: 10000;
+            
         `;
 
         const modal = document.createElement('div');
@@ -1467,6 +1468,7 @@ export async function showChartCreatorNormal(rootComponent, model, chartType) {
                 gap: 8px;
                 margin-bottom: 8px;
                 align-items: center;
+                color:black;
             `;
 
             // Label Input
@@ -1480,6 +1482,7 @@ export async function showChartCreatorNormal(rootComponent, model, chartType) {
                 border-radius: 4px;
                 font-size: 13px;
                 width: 100%;
+                color:black;
             `;
 
             // Value Input (numbers only)
@@ -1494,6 +1497,7 @@ export async function showChartCreatorNormal(rootComponent, model, chartType) {
                 border-radius: 4px;
                 font-size: 13px;
                 width: 100%;
+                color:black;
             `;
 
             // Remove Button
@@ -1602,6 +1606,7 @@ export async function showChartCreatorNormal(rootComponent, model, chartType) {
             cursor: pointer;
             font-weight: 500;
             transition: all 0.2s;
+            
         `;
         previewBtn.onmouseover = () => previewBtn.style.background = '#f0f4ff';
         previewBtn.onmouseout = () => previewBtn.style.background = 'white';
@@ -1630,6 +1635,7 @@ export async function showChartCreatorNormal(rootComponent, model, chartType) {
             border-radius: 4px;
             cursor: pointer;
             transition: all 0.2s;
+            color:black;
         `;
         cancelBtn.onmouseover = () => cancelBtn.style.background = '#f5f5f5';
         cancelBtn.onmouseout = () => cancelBtn.style.background = 'white';
@@ -1928,6 +1934,7 @@ export function showAppSelectorModal(host, apps, onSelect) {
         cursor: pointer;
         width: 100%;
         transition: background 0.2s;
+        color:black;
     `;
     cancelBtn.onmouseover = () => cancelBtn.style.background = '#f5f5f5';
     cancelBtn.onmouseout = () => cancelBtn.style.background = 'white';
@@ -2036,6 +2043,7 @@ export function showTableSelectorModal(host, tables, onSelect) {
         background: white;
         cursor: pointer;
         width: 100%;
+        color:black;
         transition: background 0.2s;
     `;
     cancelBtn.onmouseover = () => cancelBtn.style.background = '#f5f5f5';
@@ -2164,6 +2172,7 @@ export function showFilterModal(host, fields, tableData, onApply) {
             border-radius: 4px;
             font-size: 13px;
             background: white;
+            color:black;
         `;
         
         fields.forEach(field => {
@@ -2182,6 +2191,7 @@ export function showFilterModal(host, fields, tableData, onApply) {
             border-radius: 4px;
             font-size: 13px;
             background: white;
+            color:black;
         `;
         
         // Value input container
@@ -2198,6 +2208,7 @@ export function showFilterModal(host, fields, tableData, onApply) {
             border-radius: 4px;
             font-size: 13px;
             box-sizing: border-box;
+            color:black;
         `;
         valueContainer.appendChild(valueInput);
         
@@ -2230,6 +2241,7 @@ export function showFilterModal(host, fields, tableData, onApply) {
                     border: 1px solid #ddd;
                     border-radius: 4px;
                     font-size: 13px;
+                    color:black;
                     box-sizing: border-box;
                 `;
             } else if (fieldType === 'number') {
@@ -2244,6 +2256,7 @@ export function showFilterModal(host, fields, tableData, onApply) {
                     border-radius: 4px;
                     font-size: 13px;
                     box-sizing: border-box;
+                    color:black;
                 `;
             } else {
                 valueInput = document.createElement('input');
@@ -2257,6 +2270,7 @@ export function showFilterModal(host, fields, tableData, onApply) {
                     border-radius: 4px;
                     font-size: 13px;
                     box-sizing: border-box;
+                    color:black;
                 `;
             }
             
@@ -2402,6 +2416,7 @@ export function showFilterModal(host, fields, tableData, onApply) {
                 border-bottom: 2px solid #ddd;
                 font-weight: 600;
                 white-space: nowrap;
+                color:black;
             `;
             headerRow.appendChild(th);
         });
@@ -2428,6 +2443,7 @@ export function showFilterModal(host, fields, tableData, onApply) {
                     overflow: hidden;
                     text-overflow: ellipsis;
                     white-space: nowrap;
+                    color:black;
                 `;
                 tr.appendChild(td);
             });
@@ -2447,6 +2463,7 @@ export function showFilterModal(host, fields, tableData, onApply) {
                 font-size: 11px;
                 background: #f9f9f9;
                 border-top: 1px solid #ddd;
+                color:black;
             `;
             previewTableContainer.appendChild(table);
             previewTableContainer.appendChild(moreMsg);
@@ -3384,6 +3401,7 @@ export function showChartFieldSelector(rootComponent, model, chartType, data, fi
         background: white;
         border-radius: 4px;
         cursor: pointer;
+        color:black;
     `;
 
     insertBtn.onclick = async () => {
