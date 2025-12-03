@@ -3185,10 +3185,6 @@ export async function refreshSuperAppTable(rootComponent, blockId, userId, jwtTo
 
 
 
-
-
-
-
 export function showChartFieldSelector(rootComponent, model, chartType, data, fields, selectedApp, selectedTable, filters) {
     const overlay = document.createElement('div');
     overlay.style.cssText = `
@@ -3219,7 +3215,6 @@ export function showChartFieldSelector(rootComponent, model, chartType, data, fi
     title.textContent = `Configure ${chartType.charAt(0).toUpperCase() + chartType.slice(1)} Chart`;
     title.style.cssText = 'margin: 0 0 16px 0; font-size: 18px; color: #333;';
 
-    // Chart Title Input
     const titleInput = document.createElement('input');
     titleInput.placeholder = 'Chart Title';
     titleInput.style.cssText = `
@@ -3231,65 +3226,41 @@ export function showChartFieldSelector(rootComponent, model, chartType, data, fi
         font-size: 14px;
     `;
 
-    // Field selection based on chart type
     const fieldSelectionContainer = document.createElement('div');
     fieldSelectionContainer.style.cssText = 'display: flex; flex-direction: column; gap: 16px; margin-bottom: 20px;';
 
-    const getCompatibleFields = (chartType, fields) => {
-        const compatibleFields = [];
-        
-        fields.forEach(field => {
-            let isCompatible = false;
-            
-            switch (chartType) {
-                case 'bar':
-                case 'line':
-                    // For bar/line charts: category (text/date) + value (number)
-                    if (field.type === 'number') {
-                        isCompatible = { type: 'value', label: `Value: ${field.label || field.name}` };
-                    } else if (field.type === 'text' || field.type === 'date') {
-                        isCompatible = { type: 'category', label: `Category: ${field.label || field.name}` };
-                    }
-                    break;
-                    
-                case 'pie':
-                    // For pie charts: label (text) + value (number)
-                    if (field.type === 'number') {
-                        isCompatible = { type: 'value', label: `Value: ${field.label || field.name}` };
-                    } else if (field.type === 'text') {
-                        isCompatible = { type: 'label', label: `Label: ${field.label || field.name}` };
-                    }
-                    break;
-            }
-            
-            if (isCompatible) {
-                compatibleFields.push({
-                    ...field,
-                    role: isCompatible.type,
-                    displayLabel: isCompatible.label
-                });
-            }
-        });
-        
-        return compatibleFields;
+    // ─── Helpers ───
+    const getVisibleFields = (fields) => fields.filter(f => !f.name.startsWith("_hidden"));
+
+    const getDependentValueFields = (xField, fields) => {
+        if (!xField) return [];
+        switch (xField.type) {
+            case "text":
+                return fields.filter(f => f.type === "number" || f.type === "date");
+            case "date":
+                return fields.filter(f => f.type === "number");
+            case "number":
+                return fields.filter(f => f.type === "number");
+            default:
+                return [];
+        }
     };
 
-    const compatibleFields = getCompatibleFields(chartType, fields);
-    
-    // Declare these variables at the function scope
+    const visibleFields = getVisibleFields(fields);
+
+    // ─── X-axis (Category/Label) ───
     let categorySelect = null;
     let valueSelect = null;
     let currentChart = null;
     let previewCanvas = null;
 
-    if (compatibleFields.length === 0) {
+    if (visibleFields.length === 0) {
         const noFieldsMsg = document.createElement('p');
-        noFieldsMsg.textContent = 'No compatible fields found for this chart type. Bar/Line charts need text/date and number fields. Pie charts need text and number fields.';
+        noFieldsMsg.textContent = 'No compatible fields found.';
         noFieldsMsg.style.cssText = 'color: #666; font-size: 14px; text-align: center; padding: 20px;';
         fieldSelectionContainer.appendChild(noFieldsMsg);
     } else {
-        // Category/Label field selection
-        const categoryFields = compatibleFields.filter(f => f.role === 'category' || f.role === 'label');
+        const categoryFields = visibleFields.filter(f => f.type === "text" || f.type === "date");
         if (categoryFields.length > 0) {
             const categoryLabel = document.createElement('label');
             categoryLabel.textContent = chartType === 'pie' ? 'Select Label Field:' : 'Select Category Field:';
@@ -3297,81 +3268,66 @@ export function showChartFieldSelector(rootComponent, model, chartType, data, fi
             
             categorySelect = document.createElement('select');
             categorySelect.style.cssText = 'width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px;';
-            
             categoryFields.forEach(field => {
                 const option = document.createElement('option');
                 option.value = field.name;
-                option.textContent = field.displayLabel;
+                option.textContent = `${field.label || field.name} (${field.type})`;
                 categorySelect.appendChild(option);
             });
-            
+
             fieldSelectionContainer.appendChild(categoryLabel);
             fieldSelectionContainer.appendChild(categorySelect);
         }
 
-        // Value field selection
-        const valueFields = compatibleFields.filter(f => f.role === 'value');
-        if (valueFields.length > 0) {
-            const valueLabel = document.createElement('label');
-            valueLabel.textContent = 'Select Value Field:';
-            valueLabel.style.cssText = 'font-weight: 600; margin-bottom: 8px;';
-            
-            valueSelect = document.createElement('select');
-            valueSelect.style.cssText = 'width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px;';
-            
-            valueFields.forEach(field => {
-                const option = document.createElement('option');
-                option.value = field.name;
-                option.textContent = field.displayLabel;
+        // ─── Y-axis (Value) ───
+        valueSelect = document.createElement('select');
+        valueSelect.style.cssText = 'width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px;';
+        const valueLabel = document.createElement('label');
+        valueLabel.textContent = 'Select Value Field:';
+        valueLabel.style.cssText = 'font-weight: 600; margin-bottom: 8px;';
+        fieldSelectionContainer.appendChild(valueLabel);
+        fieldSelectionContainer.appendChild(valueSelect);
+
+        const updateValueDropdown = () => {
+            const selectedX = visibleFields.find(f => f.name === categorySelect.value);
+            const dependentFields = getDependentValueFields(selectedX, visibleFields);
+
+            valueSelect.innerHTML = ""; // clear previous
+            dependentFields.forEach(f => {
+                const option = document.createElement("option");
+                option.value = f.name;
+                option.textContent = `${f.label || f.name} (${f.type})`;
                 valueSelect.appendChild(option);
             });
-            
-            fieldSelectionContainer.appendChild(valueLabel);
-            fieldSelectionContainer.appendChild(valueSelect);
-        }
+        };
 
-        // Preview section
+        categorySelect.addEventListener("change", updateValueDropdown);
+        updateValueDropdown(); // initial population
+
+        // ─── Preview ───
         const previewSection = document.createElement('div');
         previewSection.style.cssText = 'margin: 20px 0; padding: 16px; background: #f9f9f9; border-radius: 6px;';
-        
         const previewTitle = document.createElement('h4');
         previewTitle.textContent = 'Preview';
         previewTitle.style.cssText = 'margin: 0 0 12px 0; font-size: 14px;';
-        
         previewCanvas = document.createElement('canvas');
         previewCanvas.style.cssText = 'max-width: 100%; border: 1px solid #eee; border-radius: 4px;';
-        
         previewSection.appendChild(previewTitle);
         previewSection.appendChild(previewCanvas);
 
         const updatePreview = () => {
             if (!categorySelect || !valueSelect) return;
-            
             const categoryField = categorySelect.value;
             const valueField = valueSelect.value;
-            
             if (!categoryField || !valueField) return;
-
-            // Process data for chart
             const chartData = processDataForChart(data, categoryField, valueField, chartType);
-            
             if (currentChart) currentChart.destroy();
-            
-            currentChart = createChartPreview(
-                previewCanvas, 
-                chartType, 
-                titleInput.value || 'Chart', 
-                chartData.labels, 
-                chartData.values
-            );
+            currentChart = createChartPreview(previewCanvas, chartType, titleInput.value || 'Chart', chartData.labels, chartData.values);
         };
 
-        // Add event listeners for live preview
-        if (categorySelect) categorySelect.addEventListener('change', updatePreview);
-        if (valueSelect) valueSelect.addEventListener('change', updatePreview);
+        categorySelect.addEventListener('change', updatePreview);
+        valueSelect.addEventListener('change', updatePreview);
         titleInput.addEventListener('input', updatePreview);
-
-        // Initial preview
         setTimeout(updatePreview, 100);
         
         modal.appendChild(previewSection);
@@ -3412,15 +3368,7 @@ export function showChartFieldSelector(rootComponent, model, chartType, data, fi
 
         const categoryField = categorySelect.value;
         const valueField = valueSelect.value;
-        
-        if (!categoryField || !valueField) {
-            toast(rootComponent.host, 'Please select both fields');
-            return;
-        }
-
         const chartData = processDataForChart(data, categoryField, valueField, chartType);
-        
-        // Create final chart and insert as image with metadata
         await createAndInsertChartWithMetadata(
             rootComponent,
             model,
@@ -3460,6 +3408,284 @@ export function showChartFieldSelector(rootComponent, model, chartType, data, fi
         }
     };
 }
+
+
+
+
+// export function showChartFieldSelector(rootComponent, model, chartType, data, fields, selectedApp, selectedTable, filters) {
+//     const overlay = document.createElement('div');
+//     overlay.style.cssText = `
+//         position: fixed;
+//         top: 0;
+//         left: 0;
+//         right: 0;
+//         bottom: 0;
+//         background: rgba(0, 0, 0, 0.5);
+//         display: flex;
+//         align-items: center;
+//         justify-content: center;
+//         z-index: 10000;
+//     `;
+
+//     const modal = document.createElement('div');
+//     modal.style.cssText = `
+//         background: white;
+//         border-radius: 8px;
+//         padding: 24px;
+//         width: 600px;
+//         max-height: 80vh;
+//         overflow-y: auto;
+//         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+//     `;
+
+//     const title = document.createElement('h3');
+//     title.textContent = `Configure ${chartType.charAt(0).toUpperCase() + chartType.slice(1)} Chart`;
+//     title.style.cssText = 'margin: 0 0 16px 0; font-size: 18px; color: #333;';
+
+//     // Chart Title Input
+//     const titleInput = document.createElement('input');
+//     titleInput.placeholder = 'Chart Title';
+//     titleInput.style.cssText = `
+//         width: 100%;
+//         padding: 10px;
+//         margin-bottom: 16px;
+//         border: 1px solid #ddd;
+//         border-radius: 4px;
+//         font-size: 14px;
+//     `;
+
+//     // Field selection based on chart type
+//     const fieldSelectionContainer = document.createElement('div');
+//     fieldSelectionContainer.style.cssText = 'display: flex; flex-direction: column; gap: 16px; margin-bottom: 20px;';
+
+//     const getCompatibleFields = (chartType, fields) => {
+//         const compatibleFields = [];
+        
+//         fields.forEach(field => {
+//             let isCompatible = false;
+//             if (field.name.startsWith('_hidden')) return;
+            
+//             switch (chartType) {
+//                 case 'bar':
+//                 case 'line':
+//                     // For bar/line charts: category (text/date) + value (number)
+//                     if (field.type === 'number') {
+//                         isCompatible = { type: 'value', label: `Value: ${field.label || field.name}` };
+//                     } else if (field.type === 'text' || field.type === 'date') {
+//                         isCompatible = { type: 'category', label: `Category: ${field.label || field.name}` };
+//                     }
+//                     break;
+                    
+//                 case 'pie':
+//                     // For pie charts: label (text) + value (number)
+//                     if (field.type === 'number') {
+//                         isCompatible = { type: 'value', label: `Value: ${field.label || field.name}` };
+//                     } else if (field.type === 'text') {
+//                         isCompatible = { type: 'label', label: `Label: ${field.label || field.name}` };
+//                     }
+//                     break;
+//             }
+            
+//             if (isCompatible) {
+//                 compatibleFields.push({
+//                     ...field,
+//                     role: isCompatible.type,
+//                     displayLabel: isCompatible.label
+//                 });
+//             }
+//         });
+        
+//         return compatibleFields;
+//     };
+
+
+
+//     const compatibleFields = getCompatibleFields(chartType, fields);
+    
+//     // Declare these variables at the function scope
+//     let categorySelect = null;
+//     let valueSelect = null;
+//     let currentChart = null;
+//     let previewCanvas = null;
+
+//     if (compatibleFields.length === 0) {
+//         const noFieldsMsg = document.createElement('p');
+//         noFieldsMsg.textContent = 'No compatible fields found for this chart type. Bar/Line charts need text/date and number fields. Pie charts need text and number fields.';
+//         noFieldsMsg.style.cssText = 'color: #666; font-size: 14px; text-align: center; padding: 20px;';
+//         fieldSelectionContainer.appendChild(noFieldsMsg);
+//     } else {
+//         // Category/Label field selection
+//         const categoryFields = compatibleFields.filter(f => f.role === 'category' || f.role === 'label');
+//         if (categoryFields.length > 0) {
+//             const categoryLabel = document.createElement('label');
+//             categoryLabel.textContent = chartType === 'pie' ? 'Select Label Field:' : 'Select Category Field:';
+//             categoryLabel.style.cssText = 'font-weight: 600; margin-bottom: 8px;';
+            
+//             categorySelect = document.createElement('select');
+//             categorySelect.style.cssText = 'width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px;';
+            
+//             categoryFields.forEach(field => {
+//                 const option = document.createElement('option');
+//                 option.value = field.name;
+//                 option.textContent = field.displayLabel;
+//                 categorySelect.appendChild(option);
+//             });
+            
+//             fieldSelectionContainer.appendChild(categoryLabel);
+//             fieldSelectionContainer.appendChild(categorySelect);
+//         }
+
+//         // Value field selection
+//         const valueFields = compatibleFields.filter(f => f.role === 'value');
+//         if (valueFields.length > 0) {
+//             const valueLabel = document.createElement('label');
+//             valueLabel.textContent = 'Select Value Field:';
+//             valueLabel.style.cssText = 'font-weight: 600; margin-bottom: 8px;';
+            
+//             valueSelect = document.createElement('select');
+//             valueSelect.style.cssText = 'width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px;';
+            
+//             valueFields.forEach(field => {
+//                 const option = document.createElement('option');
+//                 option.value = field.name;
+//                 option.textContent = field.displayLabel;
+//                 valueSelect.appendChild(option);
+//             });
+            
+//             fieldSelectionContainer.appendChild(valueLabel);
+//             fieldSelectionContainer.appendChild(valueSelect);
+//         }
+
+//         // Preview section
+//         const previewSection = document.createElement('div');
+//         previewSection.style.cssText = 'margin: 20px 0; padding: 16px; background: #f9f9f9; border-radius: 6px;';
+        
+//         const previewTitle = document.createElement('h4');
+//         previewTitle.textContent = 'Preview';
+//         previewTitle.style.cssText = 'margin: 0 0 12px 0; font-size: 14px;';
+        
+//         previewCanvas = document.createElement('canvas');
+//         previewCanvas.style.cssText = 'max-width: 100%; border: 1px solid #eee; border-radius: 4px;';
+        
+//         previewSection.appendChild(previewTitle);
+//         previewSection.appendChild(previewCanvas);
+
+//         const updatePreview = () => {
+//             if (!categorySelect || !valueSelect) return;
+            
+//             const categoryField = categorySelect.value;
+//             const valueField = valueSelect.value;
+            
+//             if (!categoryField || !valueField) return;
+
+//             // Process data for chart
+//             const chartData = processDataForChart(data, categoryField, valueField, chartType);
+            
+//             if (currentChart) currentChart.destroy();
+            
+//             currentChart = createChartPreview(
+//                 previewCanvas, 
+//                 chartType, 
+//                 titleInput.value || 'Chart', 
+//                 chartData.labels, 
+//                 chartData.values
+//             );
+//         };
+
+//         // Add event listeners for live preview
+//         if (categorySelect) categorySelect.addEventListener('change', updatePreview);
+//         if (valueSelect) valueSelect.addEventListener('change', updatePreview);
+//         titleInput.addEventListener('input', updatePreview);
+
+//         // Initial preview
+//         setTimeout(updatePreview, 100);
+        
+//         modal.appendChild(previewSection);
+//     }
+
+//     // Buttons
+//     const buttonContainer = document.createElement('div');
+//     buttonContainer.style.cssText = 'display: flex; gap: 8px; justify-content: flex-end; margin-top: 20px;';
+
+//     const insertBtn = document.createElement('button');
+//     insertBtn.textContent = 'Insert Chart';
+//     insertBtn.style.cssText = `
+//         padding: 10px 20px;
+//         border: none;
+//         background: #667eea;
+//         color: white;
+//         border-radius: 4px;
+//         cursor: pointer;
+//         font-weight: 500;
+//     `;
+
+//     const cancelBtn = document.createElement('button');
+//     cancelBtn.textContent = 'Cancel';
+//     cancelBtn.style.cssText = `
+//         padding: 10px 20px;
+//         border: 1px solid #ccc;
+//         background: white;
+//         border-radius: 4px;
+//         cursor: pointer;
+//         color:black;
+//     `;
+
+//     insertBtn.onclick = async () => {
+//         if (!categorySelect || !valueSelect) {
+//             toast(rootComponent.host, 'Please select both fields');
+//             return;
+//         }
+
+//         const categoryField = categorySelect.value;
+//         const valueField = valueSelect.value;
+        
+//         if (!categoryField || !valueField) {
+//             toast(rootComponent.host, 'Please select both fields');
+//             return;
+//         }
+
+//         const chartData = processDataForChart(data, categoryField, valueField, chartType);
+        
+//         // Create final chart and insert as image with metadata
+//         await createAndInsertChartWithMetadata(
+//             rootComponent,
+//             model,
+//             chartType,
+//             chartData.labels,
+//             chartData.values,
+//             titleInput.value,
+//             selectedApp,
+//             selectedTable,
+//             filters,
+//             { categoryField, valueField }
+//         );
+
+//         if (currentChart) currentChart.destroy();
+//         document.body.removeChild(overlay);
+//     };
+
+//     cancelBtn.onclick = () => {
+//         if (currentChart) currentChart.destroy();
+//         document.body.removeChild(overlay);
+//     };
+
+//     buttonContainer.appendChild(cancelBtn);
+//     buttonContainer.appendChild(insertBtn);
+
+//     modal.appendChild(title);
+//     modal.appendChild(titleInput);
+//     modal.appendChild(fieldSelectionContainer);
+//     modal.appendChild(buttonContainer);
+//     overlay.appendChild(modal);
+//     document.body.appendChild(overlay);
+
+//     overlay.onclick = (e) => {
+//         if (e.target === overlay) {
+//             if (currentChart) currentChart.destroy();
+//             document.body.removeChild(overlay);
+//         }
+//     };
+// }
 
 export async function showSuperAppChartCreator(rootComponent, model, chartType) {
     try {
