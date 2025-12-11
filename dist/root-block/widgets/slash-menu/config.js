@@ -15,7 +15,7 @@ import { getSurfaceBlock } from '../../../surface-ref-block/utils.js';
 import { formatDate, formatTime } from '../../utils/misc.js';
 import { slashMenuToolTips } from './tooltips/index.js';
 import { createConversionItem, createTextFormatItem, insideEdgelessText, tryRemoveEmptyLine, } from './utils.js';
-import {showMentionPopup,renderCoverImageFromBlock,createCoverUI,initializeCoverImages,addCoverImageToPage,restoreCoverImageFromDoc,createControlButton,addCoverImageToPagePersistent,initializeCoverImage,renderCoverImage,buildEditorUrl,showDocumentSelectorModal,showAppSelectorModal,showTableSelectorModal,showChartCreatorNormal,createChartPreview,insertChartAsImage,applyFilters,insertDatabaseWithData,addRefreshAction,refreshSuperAppTable,showFilterModal,showSuperAppChartCreator} from './helper-methods.js'
+import {showMentionPopup,renderCoverImageFromBlock,createCoverUI,initializeCoverImages,addCoverImageToPage,restoreCoverImageFromDoc,createControlButton,addCoverImageToPagePersistent,initializeCoverImage,renderCoverImage,buildEditorUrl,showDocumentSelectorModal,showAppSelectorModal,showTableSelectorModal,showChartCreatorNormal,createChartPreview,insertChartAsImage,applyFilters,insertDatabaseWithData,addRefreshAction,refreshSuperAppTable,showFilterModal,showSuperAppChartCreator,showTemplateSelectorModal,showTemplatesModalWithCategories,buildEditorUrl2,fetchTemplatesForType,createDocumentFromTemplate} from './helper-methods.js'
 import Cookies from "js-cookie";
 import CryptoJS from "crypto-js";
 import Chart from "chart.js/auto";
@@ -223,22 +223,100 @@ export const defaultSlashMenuConfig = {
             groupName: 'Page',
             showWhen: ({ model }) => model.doc.schema.flavourSchemaMap.has('affine:embed-linked-doc'),
         },
+{
+    name: 'New Doc',
+    description: 'Start a new document from templates.',
+    icon: NewDocIcon,
+    tooltip: slashMenuToolTips['New Doc'],
+    showWhen: ({ model }) => model.doc.schema.flavourSchemaMap.has('affine:embed-linked-doc'),
+    action: async ({ rootComponent, model }) => {
+        try {
+            // Show template selection modal
+            const createdDoc = await showTemplateSelectorModal(rootComponent);
+            
+            if (!createdDoc) {
+                toast(rootComponent.host, 'Document creation cancelled');
+                return; // User cancelled
+            }
+            
+            // For Excel (blank file)
+// For Excel (blank file) - insert as embedded link just like we do for the editor
+if (createdDoc.is_blank_excel) {
+    const parentModel = rootComponent.doc.getParent(model);
+    if (!parentModel) {
+        toast(rootComponent.host, 'Failed to insert spreadsheet');
+        return;
+    }
+    
+    const index = parentModel.children.indexOf(model) + 1;
+    
+    // Build the editor URL for Excel
+    const editorUrl = buildEditorUrl2(createdDoc);
+    
+    const bookmarkId = rootComponent.doc.addBlock(
+        'affine:bookmark',
         {
-            name: 'New Doc',
-            description: 'Start a new document.',
-            icon: NewDocIcon,
-            tooltip: slashMenuToolTips['New Doc'],
-            showWhen: ({ model }) => model.doc.schema.flavourSchemaMap.has('affine:embed-linked-doc'),
-            action: ({ rootComponent, model }) => {
-                const newDoc = createDefaultDoc(rootComponent.doc.collection);
-                insertContent(rootComponent.host, model, REFERENCE_NODE, {
-                    reference: {
-                        type: 'LinkedPage',
-                        pageId: newDoc.id,
-                    },
-                });
-            },
+            url: editorUrl,
+            title: createdDoc.filename,
+            description: `Created: ${new Date().toLocaleDateString()}`,
         },
+        parentModel,
+        index
+    );
+
+    tryRemoveEmptyLine(model);
+
+    rootComponent.host.selection.setGroup('note', [
+        rootComponent.host.selection.create('block', {
+            blockId: bookmarkId,
+        }),
+    ]);
+    
+    toast(rootComponent.host, 'Blank spreadsheet created');
+    return;
+}
+            // For other document types, insert as bookmark
+            const editorUrl = buildEditorUrl2(createdDoc);
+            
+            const parentModel = rootComponent.doc.getParent(model);
+            if (!parentModel) {
+                toast(rootComponent.host, 'Failed to insert document link');
+                return;
+            }
+            
+            const index = parentModel.children.indexOf(model) + 1;
+            
+            const bookmarkId = rootComponent.doc.addBlock(
+                'affine:bookmark',
+                {
+                    url: editorUrl,
+                    title: createdDoc.filename,
+                    description: createdDoc.template_name ? 
+                        `Template: ${createdDoc.template_name}` : 
+                        `Created: ${new Date().toLocaleDateString()}`,
+                },
+                parentModel,
+                index
+            );
+
+            // Remove empty line if present
+            tryRemoveEmptyLine(model);
+
+            // Select the newly created bookmark
+            rootComponent.host.selection.setGroup('note', [
+                rootComponent.host.selection.create('block', {
+                    blockId: bookmarkId,
+                }),
+            ]);
+            
+            toast(rootComponent.host, `Document created: ${createdDoc.filename}`);
+            
+        } catch (error) {
+            console.error('Error creating new document:', error);
+            toast(rootComponent.host, 'Failed to create document: ' + error.message);
+        }
+    },
+},
 {
     name: 'Link Document',
     description: 'Link to a document as a bookmark card',
@@ -1033,10 +1111,4 @@ export const defaultSlashMenuConfig = {
 
     ],
 };
-
-
-
-
-
-
 

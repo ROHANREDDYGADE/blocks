@@ -1240,12 +1240,13 @@ export function buildEditorUrl(doc) {
     const fileType = doc.file_type.toLowerCase();
     
     // For HTML files - use editorjs
-    if (fileType === 'html') {
+    let fileUrl = doc.file_url.replace(/\.[^/.]+$/, ".html");
+    if (fileType === 'html' || fileType ==='.zip' || fileType === 'json' || fileType ==='.json' || fileType ==='zip') {
         const params = new URLSearchParams({
             mode: 'update',
             fileId: doc.vector_document_id,
             fileName: doc.filename,
-            fileUrl: doc.file_url,
+            fileUrl: fileUrl,
             fileType: doc.file_type
         });
         return `${process.env.NEXT_PUBLIC_APP_BASE_URL}/editorjs?${params.toString()}`;
@@ -1284,6 +1285,7 @@ export async function showDocumentSelectorModal(host, docs) {
             align-items: center;
             justify-content: center;
             z-index: 9999;
+            color:black !important;
         `;
 
         const modal = document.createElement('div');
@@ -1295,14 +1297,15 @@ export async function showDocumentSelectorModal(host, docs) {
             max-height: 600px;
             overflow-y: auto;
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            color:black !important;
         `;
 
         const title = document.createElement('h3');
         title.textContent = 'Select a Document';
-        title.style.cssText = 'margin: 0 0 16px 0; font-size: 18px;';
+        title.style.cssText = 'margin: 0 0 16px 0; font-size: 18px; color:black !important;';
 
         const list = document.createElement('div');
-        list.style.cssText = 'display: flex; flex-direction: column; gap: 8px;';
+        list.style.cssText = 'display: flex; flex-direction: column; gap: 8px;color:black !important;';
 
         docs.forEach(doc => {
             const item = document.createElement('button');
@@ -1315,6 +1318,8 @@ export async function showDocumentSelectorModal(host, docs) {
                 cursor: pointer;
                 text-align: left;
                 transition: background 0.2s;
+                color:black !important;
+                
             `;
             
             item.onmouseover = () => item.style.background = '#f5f5f5';
@@ -4056,4 +4061,867 @@ export function getAllChartsWithMetadata(doc) {
     }
     
     return charts;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+export async function showTemplateSelectorModal(rootComponent) {
+    return new Promise((resolve) => {
+        // Create modal overlay
+        const overlay = document.createElement('div');
+        overlay.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+        `;
+
+        const modal = document.createElement('div');
+        modal.style.cssText = `
+            background: white;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 600px;
+            max-height: 70vh;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+        `;
+
+        // Header
+        const header = document.createElement('div');
+        header.style.cssText = `
+            padding: 20px 30px;
+            border-bottom: 1px solid #e0e0e0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        `;
+        
+        const title = document.createElement('h3');
+        title.textContent = 'Select Document Type';
+        title.style.cssText = 'margin: 0; font-size: 18px; color: #333;';
+        
+        const closeBtn = document.createElement('button');
+        closeBtn.innerHTML = '<i class="fas fa-times"></i>';
+        closeBtn.style.cssText = `
+            background: none;
+            border: none;
+            font-size: 20px;
+            color: #999;
+            cursor: pointer;
+            padding: 0;
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        `;
+        closeBtn.onclick = () => {
+            document.body.removeChild(overlay);
+            resolve(null);
+        };
+        
+        header.appendChild(title);
+        header.appendChild(closeBtn);
+
+        // Content - Document type selection
+        const content = document.createElement('div');
+        content.style.cssText = `
+            padding: 30px;
+            flex: 1;
+            overflow-y: auto;
+        `;
+
+        const typeGrid = document.createElement('div');
+        typeGrid.style.cssText = `
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        `;
+
+        // Document types - matching your original code
+        const documentTypes = [
+            { 
+                value: 'html', 
+                name: 'HTML Page', 
+                icon: './img/html_icon.png',
+                bgColor: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
+            },
+            { 
+                value: 'docx', 
+                name: 'Word Document', 
+                icon: './img/word_icon.png',
+                bgColor: 'linear-gradient(135deg, #2b5876 0%, #4e4376 100%)'
+            },
+            { 
+                value: 'xlsx', 
+                name: 'Spreadsheet', 
+                icon: './img/exel_icon.png',
+                bgColor: 'linear-gradient(135deg, #119947ff 0%, #016e2bff 100%)'
+            },
+            { 
+                value: 'pptx', 
+                name: 'Presentation', 
+                icon: './img/ppt_icon.svg',
+                bgColor: 'linear-gradient(135deg, #d04a02 0%, #ff6b35 100%)'
+            },
+        ];
+
+        documentTypes.forEach(type => {
+            const card = document.createElement('div');
+            card.className = 'doc-type-card';
+            card.dataset.value = type.value;
+            card.style.cssText = `
+                border: 2px solid #e0e0e0;
+                border-radius: 12px;
+                padding: 20px;
+                text-align: center;
+                cursor: pointer;
+                transition: all 0.3s ease;
+                background: #fff;
+            `;
+
+            const iconDiv = document.createElement('div');
+            iconDiv.style.cssText = `
+                width: 80px;
+                height: 80px;
+                margin: 0 auto 15px;
+                background: ${type.bgColor};
+                border-radius: 12px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                overflow: hidden;
+            `;
+
+            const iconImg = document.createElement('img');
+            iconImg.src = type.icon;
+            iconImg.alt = type.name;
+            iconImg.style.cssText = 'width: 50px; height: 50px; object-fit: contain;';
+            
+            const name = document.createElement('h4');
+            name.textContent = type.name;
+            name.style.cssText = 'margin: 0; font-size: 14px; font-weight: 600; color: #333;';
+
+            iconDiv.appendChild(iconImg);
+            card.appendChild(iconDiv);
+            card.appendChild(name);
+            
+            card.onclick = async () => {
+                // Remove selection from all cards
+                document.querySelectorAll('.doc-type-card').forEach(c => {
+                    c.style.borderColor = '#e0e0e0';
+                    c.style.backgroundColor = '#fff';
+                });
+                
+                // Highlight selected
+                card.style.borderColor = '#667eea';
+                card.style.backgroundColor = '#f0f4ff';
+                
+                const docType = type.value;
+                
+                // Handle Excel with special flow (blank file)
+                if (docType === 'xlsx') {
+                    try {
+                        // Show loading
+                        content.innerHTML = '<div style="text-align: center; padding: 40px;"><i class="fas fa-spinner fa-spin fa-2x"></i><p>Creating spreadsheet...</p></div>';
+                        
+                        const response = await fetch('./img/blank.xlsx');
+                        const blob = await response.blob();
+                        const file = new File([blob], "NewSpreadsheet.xlsx", {
+                            type: blob.type,
+                        });
+
+                        const formData = new FormData();
+                        formData.append("file", file);
+                        formData.append("user_id", userInfo?.userid || userInfo?.id || 1);
+                        formData.append("folder", "#MyDocuments");
+                        formData.append("category", "documents");
+
+                        const uploadResponse = await fetch(
+                            `${process.env.NEXT_PUBLIC_NFAPI_BASE_URL}api/v1/wise/upload_file`,
+                            {
+                                method: 'POST',
+                                headers: {
+                                    'Authorization': `Token ${jwtToken}`,
+                                },
+                                body: formData
+                            }
+                        );
+
+                        const uploadData = await uploadResponse.json();
+
+                        if (uploadData.status) {
+                            const object_name = uploadData.object_name;
+                            const createdDoc = {
+                                file_url: `https://artifacts.agentbaba.ai/${object_name}`,
+                                file_type: ".xlsx",
+                                filename: "NewSpreadsheet.xlsx",
+                                doc_id: uploadData.doc_id,
+                                is_blank_excel: true
+                            };
+                            
+                            document.body.removeChild(overlay);
+                            resolve(createdDoc);
+                        } else {
+                            throw new Error(uploadData.message || "Upload failed");
+                        }
+                    } catch (error) {
+                        console.error("Failed to create spreadsheet:", error);
+                        content.innerHTML = `<div style="text-align: center; padding: 40px; color: #f44336;">
+                            <i class="fas fa-exclamation-circle fa-2x"></i>
+                            <p>Failed to create spreadsheet: ${error.message}</p>
+                        </div>`;
+                    }
+                    return;
+                }
+                
+                // For HTML, DOCX, PPTX - show template selection with categories
+                try {
+                    // Fetch categories
+                    const categoriesResponse = await fetch(
+                        `${process.env.NEXT_PUBLIC_NFAPI_BASE_URL}api/v1/notes/templates/categories/`,
+                        {
+                            headers: { Authorization: `Token ${jwtToken}` }
+                        }
+                    );
+                    
+                    const categoriesData = await categoriesResponse.json();
+                    const allCategories = categoriesData.categories || [];
+
+                    // Filter out "sample" category from display
+                    const categories = allCategories.filter(
+                        cat => cat.toLowerCase() !== "sample"
+                    );
+
+                    if (categories.length === 0) {
+                        content.innerHTML = `<div style="text-align: center; padding: 40px;">
+                            <i class="fas fa-info-circle fa-2x"></i>
+                            <p>No templates available for this document type.</p>
+                        </div>`;
+                        return;
+                    }
+
+                    // Show full template selection modal with categories and pagination
+                    const selectedTemplate = await showTemplatesModalWithCategories(
+                        docType, 
+                        categories, 
+                        allCategories, 
+                        rootComponent.host
+                    );
+                    
+                    if (selectedTemplate) {
+                        document.body.removeChild(overlay);
+                        resolve(selectedTemplate);
+                    }
+                } catch (error) {
+                    console.error('Error loading templates:', error);
+                    content.innerHTML = `<div style="text-align: center; padding: 40px; color: #f44336;">
+                        <i class="fas fa-exclamation-circle fa-2x"></i>
+                        <p>Failed to load templates: ${error.message}</p>
+                    </div>`;
+                }
+            };
+
+            typeGrid.appendChild(card);
+        });
+
+        content.appendChild(typeGrid);
+        
+        // Add CSS for hover effect
+        const style = document.createElement('style');
+        style.textContent = `
+            .doc-type-card:hover {
+                border-color: #667eea !important;
+                transform: translateY(-5px);
+                box-shadow: 0 8px 16px rgba(0,0,0,0.1);
+            }
+            .doc-type-card.selected {
+                border-color: #667eea !important;
+                background: #f0f4ff !important;
+            }
+        `;
+
+        modal.appendChild(style);
+        modal.appendChild(header);
+        modal.appendChild(content);
+        overlay.appendChild(modal);
+        document.body.appendChild(overlay);
+
+        // Close on overlay click
+        overlay.onclick = (e) => {
+            if (e.target === overlay) {
+                document.body.removeChild(overlay);
+                resolve(null);
+            }
+        };
+    });
+}
+
+export async function showTemplatesModalWithCategories(docType, categories, allCategories, host) {
+    return new Promise(async (resolve) => {
+        // Fetch sample templates once (to prepend to all categories)
+        let sampleTemplates = [];
+        const hasSampleCategory = allCategories.some(
+            cat => cat.toLowerCase() === "sample"
+        );
+
+        if (hasSampleCategory) {
+            try {
+                const sampleResponse = await fetch(
+                    `${process.env.NEXT_PUBLIC_NFAPI_BASE_URL}api/v1/notes/templates/list/`,
+                    {
+                        method: 'POST',
+                        headers: { 
+                            'Content-Type': 'application/json',
+                            Authorization: `Token ${jwtToken}` 
+                        },
+                        body: JSON.stringify({
+                            type: docType,
+                            category: "sample",
+                            page: 1,
+                            page_size: 100
+                        })
+                    }
+                );
+                const sampleData = await sampleResponse.json();
+                sampleTemplates = sampleData.results || [];
+            } catch (error) {
+                console.error("Error loading sample templates:", error);
+            }
+        }
+
+        // Show templates with category tabs and pagination
+        let currentCategory = categories[0];
+        let currentPage = 1;
+        const pageSize = 10;
+
+        const modalId = "templates-modal-container";
+        let modalContainer = document.getElementById(modalId);
+        if (!modalContainer) {
+            modalContainer = document.createElement("div");
+            modalContainer.id = modalId;
+            modalContainer.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: rgba(0, 0, 0, 0.5);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                z-index: 10000;
+                padding: 10px;
+            `;
+            document.body.appendChild(modalContainer);
+        }
+
+        let selectedTemplate = null;
+
+        const loadTemplates = async (cat, pg) => {
+            try {
+                const templatesResponse = await fetch(
+                    `${process.env.NEXT_PUBLIC_NFAPI_BASE_URL}api/v1/notes/templates/list/`,
+                    {
+                        method: 'POST',
+                        headers: { 
+                            'Content-Type': 'application/json',
+                            Authorization: `Token ${jwtToken}` 
+                        },
+                        body: JSON.stringify({
+                            type: docType,
+                            category: cat,
+                            page: pg,
+                            page_size: pageSize,
+                        })
+                    }
+                );
+
+                const templatesData = await templatesResponse.json();
+                let { results, total_pages, current_page } = templatesData;
+
+                // Prepend sample templates only on first page
+                if (pg === 1 && sampleTemplates.length > 0) {
+                    // Filter out any duplicates (by id)
+                    const resultIds = new Set(results.map(t => t.id));
+                    const uniqueSamples = sampleTemplates.filter(
+                        t => !resultIds.has(t.id)
+                    );
+                    results = [...uniqueSamples, ...results];
+                }
+
+                renderModal(results, total_pages, current_page, cat);
+            } catch (error) {
+                console.error("Error loading templates:", error);
+                renderModal([], 0, 1, cat);
+            }
+        };
+
+        const renderModal = (results, total_pages, current_page, activeCategory) => {
+            modalContainer.innerHTML = `
+                <div style="
+                    background: white;
+                    border-radius: 12px;
+                    width: 100%;
+                    max-width: 1200px;
+                    max-height: 90vh;
+                    display: flex;
+                    flex-direction: column;
+                    box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+                ">
+                    <!-- Header -->
+                    <div style="
+                        padding: 15px 20px;
+                        border-bottom: 1px solid #e0e0e0;
+                        display: flex;
+                        justify-content: space-between;
+                        align-items: center;
+                        gap: 10px;
+                    ">
+                        <h2 style="margin: 0; font-size: 20px; color: #333; flex-shrink: 1; overflow: hidden; text-overflow: ellipsis;">Select Template</h2>
+                        <button id="close-modal" style="
+                            background: none;
+                            border: none;
+                            font-size: 28px;
+                            color: #999;
+                            cursor: pointer;
+                            padding: 0;
+                            width: 32px;
+                            height: 32px;
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+                            flex-shrink: 0;
+                        ">&times;</button>
+                    </div>
+
+                    <!-- Category Tabs -->
+                    <div style="
+                        display: flex;
+                        gap: 10px;
+                        padding: 15px 20px;
+                        border-bottom: 2px solid #e0e0e0;
+                        overflow-x: auto;
+                        flex-shrink: 0;
+                        -webkit-overflow-scrolling: touch;
+                    ">
+                        ${categories.map(cat => `
+                            <button class="category-tab" data-category="${cat}" style="
+                                padding: 8px 16px;
+                                border: none;
+                                background: ${cat === activeCategory ? "#667eea" : "#f0f0f0"};
+                                color: ${cat === activeCategory ? "white" : "#333"};
+                                border-radius: 6px;
+                                cursor: pointer;
+                                font-weight: 600;
+                                white-space: nowrap;
+                                transition: all 0.3s ease;
+                                flex-shrink: 0;
+                            ">
+                                ${cat}
+                            </button>
+                        `).join("")}
+                    </div>
+
+                    <!-- Templates Grid -->
+                    <div style="
+                        flex: 1;
+                        overflow-y: auto;
+                        padding: 20px;
+                    ">
+                        <div style="
+                            display: grid;
+                            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+                            gap: 15px;
+                        ">
+                            ${results.map(template => `
+                                <div class="template-card" data-template-id="${template.id}" style="
+                                    border: 2px solid #e0e0e0;
+                                    border-radius: 8px;
+                                    padding: 10px;
+                                    cursor: pointer;
+                                    transition: all 0.3s ease;
+                                    background: #fff;
+                                ">
+                                    ${template.preview_image_url ? 
+                                        `<img src="${template.preview_image_url}" alt="${template.name}" style="
+                                            width: 100%;
+                                            height: 150px;
+                                            object-fit: cover;
+                                            border-radius: 4px;
+                                            margin-bottom: 8px;
+                                        " />` : 
+                                        `<div style="
+                                            width: 100%;
+                                            height: 150px;
+                                            background: #f0f0f0;
+                                            border-radius: 4px;
+                                            margin-bottom: 8px;
+                                            display: flex;
+                                            align-items: center;
+                                            justify-content: center;
+                                            color: #999;
+                                        ">No Preview</div>`
+                                    }
+                                    <div style="
+                                        font-size: 14px;
+                                        font-weight: 600;
+                                        color: #333;
+                                        text-align: center;
+                                        overflow: hidden;
+                                        text-overflow: ellipsis;
+                                        white-space: nowrap;
+                                    ">${template.name || 'Untitled Template'}</div>
+                                </div>
+                            `).join("")}
+                        </div>
+                        ${results.length === 0 ? 
+                            '<div style="text-align: center; padding: 40px; color: #999;">No templates found in this category</div>' : 
+                            ""
+                        }
+                    </div>
+
+                    <!-- Footer with Pagination and Actions -->
+                    <div style="
+                        padding: 15px 20px;
+                        border-top: 1px solid #e0e0e0;
+                        display: flex;
+                        flex-direction: column;
+                        gap: 15px;
+                    ">
+                        <!-- Pagination -->
+                        <div style="display: flex; gap: 8px; align-items: center; justify-content: center; flex-wrap: wrap;">
+                            <button id="prev-page" ${current_page <= 1 ? "disabled" : ""} style="
+                                padding: 8px 16px;
+                                border: 1px solid #ddd;
+                                border-radius: 4px;
+                                cursor: ${current_page <= 1 ? "not-allowed" : "pointer"};
+                                background: white;
+                                color: #333;
+                                white-space: nowrap;
+                                opacity: ${current_page <= 1 ? "0.5" : "1"};
+                                font-size: 14px;
+                            ">Previous</button>
+                            <span style="color: #666; font-size: 14px; white-space: nowrap;">Page ${current_page} of ${total_pages || 1}</span>
+                            <button id="next-page" ${current_page >= total_pages ? "disabled" : ""} style="
+                                padding: 8px 16px;
+                                border: 1px solid #ddd;
+                                border-radius: 4px;
+                                cursor: ${current_page >= total_pages ? "not-allowed" : "pointer"};
+                                background: white;
+                                color: #333;
+                                white-space: nowrap;
+                                opacity: ${current_page >= total_pages ? "0.5" : "1"};
+                                font-size: 14px;
+                            ">Next</button>
+                        </div>
+
+                        <!-- Action Buttons -->
+                        <div style="display: flex; gap: 10px; justify-content: stretch;">
+                            <button id="cancel-btn" style="
+                                flex: 1;
+                                padding: 12px 20px;
+                                border: 1px solid #ddd;
+                                border-radius: 6px;
+                                cursor: pointer;
+                                background: white;
+                                color: #333;
+                                font-weight: 600;
+                                font-size: 14px;
+                                min-width: 0;
+                            ">Cancel</button>
+                            <button id="confirm-btn" style="
+                                flex: 1;
+                                padding: 12px 20px;
+                                border: none;
+                                border-radius: 6px;
+                                cursor: pointer;
+                                background: #667eea;
+                                color: white;
+                                font-weight: 600;
+                                font-size: 14px;
+                                min-width: 0;
+                            ">Create</button>
+                        </div>
+                    </div>
+                </div>
+
+                <style>
+                    .category-tab:hover:not([disabled]) {
+                        background: #667eea !important;
+                        color: white !important;
+                    }
+                    .template-card:hover {
+                        border-color: #667eea !important;
+                        transform: translateY(-2px);
+                        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+                    }
+                    .template-card.selected {
+                        border-color: #667eea !important;
+                        background: #f0f4ff !important;
+                        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.2);
+                    }
+                    
+                    @media (max-width: 640px) {
+                        #templates-modal-container > div {
+                            border-radius: 0 !important;
+                            max-height: 100vh !important;
+                            height: 100vh;
+                        }
+                    }
+                </style>
+            `;
+
+            attachEventListeners(results, total_pages, current_page, activeCategory);
+        };
+
+        const attachEventListeners = (results, total_pages, current_page, activeCategory) => {
+            // Store template data for retrieval
+            const templateMap = new Map(results.map(t => [t.id.toString(), t]));
+
+            // Close button
+            document.getElementById("close-modal")?.addEventListener("click", closeModal);
+            document.getElementById("cancel-btn")?.addEventListener("click", closeModal);
+
+            // Click outside to close
+            modalContainer.addEventListener("click", (e) => {
+                if (e.target === modalContainer) {
+                    closeModal();
+                }
+            });
+
+            // Template card selection
+            const cards = document.querySelectorAll(".template-card");
+            cards.forEach((card) => {
+                card.addEventListener("click", () => {
+                    cards.forEach(c => c.classList.remove("selected"));
+                    card.classList.add("selected");
+                    const templateId = card.getAttribute("data-template-id");
+                    selectedTemplate = templateMap.get(templateId);
+                });
+            });
+
+            // Category tabs
+            const tabs = document.querySelectorAll(".category-tab");
+            tabs.forEach((tab) => {
+                tab.addEventListener("click", async () => {
+                    const newCategory = tab.getAttribute("data-category");
+                    currentCategory = newCategory;
+                    currentPage = 1;
+                    selectedTemplate = null;
+                    await loadTemplates(newCategory, 1);
+                });
+            });
+
+            // Pagination
+            document.getElementById("prev-page")?.addEventListener("click", async () => {
+                if (current_page > 1) {
+                    currentPage = current_page - 1;
+                    selectedTemplate = null;
+                    await loadTemplates(currentCategory, currentPage);
+                }
+            });
+
+            document.getElementById("next-page")?.addEventListener("click", async () => {
+                if (current_page < total_pages) {
+                    currentPage = current_page + 1;
+                    selectedTemplate = null;
+                    await loadTemplates(currentCategory, currentPage);
+                }
+            });
+
+            // Confirm button
+            document.getElementById("confirm-btn")?.addEventListener("click", async () => {
+                if (!selectedTemplate) {
+                    // Show error message
+                    const errorDiv = document.createElement('div');
+                    errorDiv.style.cssText = 'position: fixed; top: 20px; right: 20px; background: #f44336; color: white; padding: 10px 20px; border-radius: 4px; z-index: 10001;';
+                    errorDiv.textContent = 'Please select a template';
+                    document.body.appendChild(errorDiv);
+                    setTimeout(() => errorDiv.remove(), 3000);
+                    return;
+                }
+                
+                // Show loading in a way that preserves the modal structure
+                const modalContent = modalContainer.querySelector('div');
+                const originalContent = modalContent.innerHTML;
+                modalContent.innerHTML = `
+                    <div style="text-align: center; padding: 100px 40px;">
+                        <i class="fas fa-spinner fa-spin fa-3x" style="color: #667eea;"></i>
+                        <p style="margin-top: 20px; font-size: 16px; color: #333;">Creating document from template...</p>
+                    </div>
+                `;
+                
+                try {
+                    const createdDoc = await createDocumentFromTemplate(selectedTemplate, docType);
+                    console.log('Document created successfully:', createdDoc);
+                    
+                    // Close modal and resolve
+                    closeModal();
+                    resolve(createdDoc);
+                } catch (error) {
+                    console.error('Error creating document:', error);
+                    modalContent.innerHTML = `
+                        <div style="text-align: center; padding: 40px; color: #f44336;">
+                            <i class="fas fa-exclamation-circle fa-2x"></i>
+                            <p style="margin-top: 20px;">Failed to create document: ${error.message}</p>
+                            <button onclick="this.closest('.modal-container')?.remove()" style="
+                                margin-top: 20px;
+                                padding: 10px 20px;
+                                border: none;
+                                border-radius: 6px;
+                                background: #667eea;
+                                color: white;
+                                cursor: pointer;
+                            ">Close</button>
+                        </div>
+                    `;
+                }
+            });
+        };
+
+        const closeModal = () => {
+            if (modalContainer && modalContainer.parentNode) {
+                modalContainer.parentNode.removeChild(modalContainer);
+            }
+        };
+
+        // Initial load
+        await loadTemplates(currentCategory, currentPage);
+    });
+}
+
+// Helper to build editor URL
+export function buildEditorUrl2(doc) {
+    const fileName = doc.filename || 
+        (doc.file_url ? doc.file_url.split('/').pop() : 'document');
+
+    // CASE 1: ZIP File (Special handling)
+    if (doc.file_type === ".zip") {
+        // Extract name without .zip
+        const cleanName = fileName.replace(/\.zip$/i, "");
+
+        // File URL should point to JSON or HTML extracted from ZIP
+        const fileUrl = encodeURIComponent(
+            doc.json_file_url || doc.html_file_url || doc.file_url
+        );
+
+        return `${process.env.NEXT_PUBLIC_APP_BASE_URL}/editorjs?` +
+            `mode=update` +
+            `&fileId=` + 
+            `&fileName=${cleanName}` +
+            `&fileUrl=${fileUrl}` +
+            `&fileType=.html` +
+            `&viewmode=true`;
+    }
+
+    // CASE 2: Normal File (Default flow)
+    const params = new URLSearchParams({
+        mode: 'edit',
+        fileUrl: doc.file_url,
+        fileName: fileName,
+        viewOnly: 'true',
+        userId: userInfo?.userid || userInfo?.id || '',
+        userName: encodeURIComponent(userInfo?.name || '')
+    }).toString();
+
+    return `${process.env.NEXT_PUBLIC_APP_BASE_URL}/alleditor?${params}`;
+}
+
+
+// Fetch templates for a specific document type
+export async function fetchTemplatesForType(docType, rootComponent) {
+    try {
+        const userId = userInfo?.userid || userInfo?.id || 1;
+        
+        // Get categories
+        const categoriesResponse = await fetch(
+            `${process.env.NEXT_PUBLIC_NFAPI_BASE_URL}api/v1/notes/templates/categories/`,
+            {
+                headers: { Authorization: `Token ${jwtToken}` }
+            }
+        );
+        
+        const categoriesData = await categoriesResponse.json();
+        const allCategories = categoriesData.categories || [];
+        const categories = allCategories.filter(cat => cat.toLowerCase() !== 'sample');
+        
+        if (categories.length === 0) return [];
+        
+        // Get templates from first category
+        const templatesResponse = await fetch(
+            `${process.env.NEXT_PUBLIC_NFAPI_BASE_URL}api/v1/notes/templates/list/`,
+            {
+                method: 'POST',
+                headers: { 
+                    'Content-Type': 'application/json',
+                    Authorization: `Token ${jwtToken}` 
+                },
+                body: JSON.stringify({
+                    type: docType,
+                    category: categories[0],
+                    page: 1,
+                    page_size: 50
+                })
+            }
+        );
+        
+        const templatesData = await templatesResponse.json();
+        return templatesData.results || [];
+    } catch (error) {
+        console.error('Error fetching templates:', error);
+        throw error;
+    }
+}
+
+// Create document from template
+export async function createDocumentFromTemplate(template, docType) {
+    const userId = userInfo?.userid || userInfo?.id || 1;
+    
+    const response = await fetch(
+        `${process.env.NEXT_PUBLIC_NFAPI_BASE_URL}api/v1/notes/templates/clone/`,
+        {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Token ${jwtToken}`
+            },
+            body: JSON.stringify({
+                template_id: template.id,
+                user_id: userId,
+            })
+        }
+    );
+
+    const cloneData = await response.json();
+    
+    if (!cloneData.status) {
+        throw new Error(cloneData.message || 'Failed to clone template');
+    }
+    
+    return {
+        file_url: cloneData.file_url,
+        file_type: cloneData.file_type || `.${docType}`,
+        filename: cloneData.filename || `NewDocument.${docType}`,
+        doc_id: cloneData.doc_id,
+        template_name: template.name
+    };
 }
