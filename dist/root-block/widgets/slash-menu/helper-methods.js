@@ -4156,12 +4156,21 @@ export async function showTemplateSelectorModal(rootComponent) {
             margin-bottom: 30px;
         `;
 
-        // Document types - matching your original code
+        // Document types - with SVG icon for HTML
         const documentTypes = [
             { 
                 value: 'html', 
-                name: 'HTML Page', 
-                icon: './img/html_icon.png',
+                name: 'Native Doc', 
+                icon: 'svg', // Special indicator for SVG
+                svg: `
+                    <svg 
+                        xmlns="http://www.w3.org/2000/svg" 
+                        viewBox="0 0 448 512" 
+                        style="width: 40px; height: 40px; fill: white;"
+                    >
+                        <path d="M96 0C43 0 0 43 0 96V416c0 53 43 96 96 96H384h32c17.7 0 32-14.3 32-32s-14.3-32-32-32V384c17.7 0 32-14.3 32-32V32c0-17.7-14.3-32-32-32H384 96zm0 384H352v64H96c-17.7 0-32-14.3-32-32s14.3-32 32-32zm32-240c0-8.8 7.2-16 16-16H336c8.8 0 16 7.2 16 16s-7.2 16-16 16H144c-8.8 0-16-7.2-16-16zm0 64c0-8.8 7.2-16 16-16H336c8.8 0 16 7.2 16 16s-7.2 16-16 16H144c-8.8 0-16-7.2-16-16zm0 64c0-8.8 7.2-16 16-16H336c8.8 0 16 7.2 16 16s-7.2 16-16 16H144c-8.8 0-16-7.2-16-16z"/>
+                    </svg>
+                `,
                 bgColor: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
             },
             { 
@@ -4211,16 +4220,22 @@ export async function showTemplateSelectorModal(rootComponent) {
                 overflow: hidden;
             `;
 
-            const iconImg = document.createElement('img');
-            iconImg.src = type.icon;
-            iconImg.alt = type.name;
-            iconImg.style.cssText = 'width: 50px; height: 50px; object-fit: contain;';
+            if (type.icon === 'svg') {
+                // Use SVG for HTML option
+                iconDiv.innerHTML = type.svg;
+            } else {
+                // Use img tag for other options
+                const iconImg = document.createElement('img');
+                iconImg.src = type.icon;
+                iconImg.alt = type.name;
+                iconImg.style.cssText = 'width: 50px; height: 50px; object-fit: contain;';
+                iconDiv.appendChild(iconImg);
+            }
             
             const name = document.createElement('h4');
             name.textContent = type.name;
             name.style.cssText = 'margin: 0; font-size: 14px; font-weight: 600; color: #333;';
 
-            iconDiv.appendChild(iconImg);
             card.appendChild(iconDiv);
             card.appendChild(name);
             
